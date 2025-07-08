@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4 text-primary">
+        <i class="bi bi-clock-history"></i> Historial de medicamentos agregados a farmacias por el laboratorio: {{ laboratorio.nombre }}
+    </h2>
+    <h4 class="mt-4">Medicamentos de este laboratorio:</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Nombre Comercial</th>
+                <th>Nombre Farmacológico</th>
+                <th>Componentes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for medicamento in medicamentos %}
+            <tr>
+                <td>{{ medicamento.nombre_comercial }}</td>
+                <td>{{ medicamento.nombre_farmacologico }}</td>
+                <td>{{ medicamento.componentes }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No hay medicamentos registrados para este laboratorio.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="/labs/" class="btn btn-secondary mt-3">Volver a laboratorios</a>
+</div>
+{% endblock %}

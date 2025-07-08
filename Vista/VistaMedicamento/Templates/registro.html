@@ -1,0 +1,54 @@
+
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <div class="form-header">
+            <h2>Registro de Nuevo Medicamento</h2>
+            <p class="text-muted">Complete todos los campos obligatorios</p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_nombre_comercial" class="form-label required-field">Nombre Comercial</label>
+                    {{ form.nombre_comercial }}
+                    <div class="form-text">Nombre de marca del medicamento</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="id_nombre_farmacologico" class="form-label required-field">Nombre Farmacológico</label>
+                    {{ form.nombre_farmacologico }}
+                    <div class="form-text">Denominación Común Internacional (DCI).</div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_componentes" class="form-label required-field">Componentes</label>
+                {{ form.componentes }}
+                <div class="form-text">Lista de principios activos, separados por comas</div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_laboratorio" class="form-label required-field">Laboratorio Fabricante</label>
+                    {{ form.laboratorio }}
+                </div>
+                <!--<div class="col-md-6">
+                    <label for="id_concentracion" class="form-label">Concentración</label>
+                    {{ form.concentracion }}
+                    <div class="form-text">Ej: 500mg, 20mg/mL</div>
+                </div>
+            </div>-->
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="reset" class="btn btn-secondary me-md-2">Limpiar Formulario</button>
+                <button type="submit" class="btn btn-primary">Registrar Medicamento</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

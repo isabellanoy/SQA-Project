@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="text-center mb-4 text-primary">
+        <i class="bi bi-shop"></i> Farmacias y sus catálogos
+    </h1>
+
+    <!-- Botón Organizar Catálogo -->
+    <div class="d-flex justify-content-end mb-3">
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-filter"></i> Organizar Catálogo
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="?orden=alfabetico">Orden Alfabético</a></li>
+                <li><a class="dropdown-item" href="?orden=reciente">Última farmacia agregada</a></li>
+                <li><a class="dropdown-item" href="?orden=laboratorio">Por Laboratorio</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tarjetas de farmacias -->
+    <div class="row g-4">
+        {% for farmacia in farmacias %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h5 mb-0">
+                        <i class="bi bi-building"></i> {{ farmacia.nombre }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        <i class="bi bi-geo-alt-fill text-secondary"></i>
+                        <strong>Ubicación:</strong> {{ farmacia.direccion }}
+                    </p>
+
+                    <!-- Laboratorios asociados -->
+                    <h6 class="mt-3 text-secondary">
+                        <i class="bi bi-flask"></i> Laboratorios asociados
+                    </h6>
+                    <ul class="list-group list-group-flush">
+                        {% for lab in farmacia.laboratorios.all %}
+                        <li class="list-group-item">
+                            <i class="bi bi-building-fill text-primary"></i> {{ lab.nombre }}
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">No tiene laboratorios asociados</li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Medicamentos -->
+                    <h5 class="mt-3 text-secondary">
+                        <i class="bi bi-capsule"></i> Medicamentos
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nombre</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for medicamento in medicamentos %}
+                                {% if medicamento.laboratorio in farmacia.laboratorios.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ medicamento.nombre_comercial }}</strong><br>
+                                        <small class="text-muted">{{ medicamento.nombre_farmacologico }}</small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Botón Modificar -->
+                <div class="card-footer bg-transparent">
+                    <a href="{% url 'modificar_farmacia' farmacia.id %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="bi bi-pencil-square"></i> Modificar
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
