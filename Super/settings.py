@@ -65,7 +65,13 @@ ROOT_URLCONF = 'Super.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR, 'templates')],
+        'DIRS': [
+            os.path.join(BASE_DIR, 'Vista', 'VistaPrincipal', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaFarmacia', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaLaboratorio', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaMedicamento', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaUsuario', 'Templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
