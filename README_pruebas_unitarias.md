@@ -198,6 +198,14 @@ Verifican el comportamiento HTTP de cada vista: códigos de respuesta, contextos
 | Capa | Clases de prueba | Tests |
 |------|-----------------|-------|
 | Modelos | 4 | 28 |
+
+---
+
+## Preparación de Datos (SetUp)
+En las pruebas unitarias de modelos, formularios y vistas (`Controlador/tests.py`), la preparación de datos (`setUp`) se mantiene al mínimo necesario para aislar la prueba. Dependiendo del caso de prueba, los datos provienen de constructores simulados desde cero (hardcodeados dentro del propio caso de prueba) durante la fase de validación inicial (`setUp`). Generalmente implica:
+- Crear registros aislados requeridos para las llaves foráneas. Ejemplo: se crea un registro de `Laboratorios` para poder pasarlo en la creación de un `Medicamento`.
+- Crear el registro primario modificado o inspeccionado. Ejemplo: la prueba `test_modificar_labs_post_valido` primero genera y guarda un Laboratorio (`self.laboratorio`) antes de intentar modificarlo a través del `self.client`.
+- Crear usuarios en los test de la vista autenticada usando el método `User.objects.create_user`.
 | Formularios | 3 | 26 |
 | Controladores | 4 | 36 |
 | **Total** | **11** | **90** |

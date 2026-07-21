@@ -218,6 +218,15 @@ Verifica que la vista de perfiles refleja todos los usuarios del sistema en tiem
 
 ---
 
+## Preparación de Datos (SetUp)
+En las pruebas de integración (`Controlador/integration_tests.py`), la preparación de datos busca recrear flujos reales, generando un estado inicial más completo en la base de datos de pruebas (en memoria). Los datos que alimentan los tests provienen netamente del ORM de Django (en la inicialización `setUp`), es decir, son datos construidos simulando una creación natural desde cero y no se importan de ninguna base de datos de producción o un archivo de fixtures.
+
+La técnica de preparación incluye:
+- Configurar dependencias jerárquicas encadenadas (`setUp`), creando Usuarios (para tests de autenticación) o instanciando Laboratorios en los que posteriormente se apoyarán los Farmacias o Medicamentos para realizar las peticiones HTTP (`GET`/`POST`).
+- No aplicar Mocks, ya que en la prueba de integración el flujo debe ser continuo; es decir, todos los elementos pre-existentes estarán presentes de manera explícita interactuando como si fuera la aplicación real y con el ORM.
+
+---
+
 ## Paso a paso para ejecutar las pruebas
 
 ### Prerrequisitos
