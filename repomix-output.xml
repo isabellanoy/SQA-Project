@@ -1,0 +1,3705 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+Controlador/
+  ControladorFarmacia/
+    FarmaciaController.py
+  ControladorLaboratorio/
+    LaboratorioController.py
+  ControladorMedicamentos/
+    MedicamentoContrller.py
+    MedicamentoController.py
+  ControladorUsuario/
+    PerfilController.py
+  integration_tests.py
+  tests.py
+Modelo/
+  ModeloFarmacia/
+    Farmacias/
+      migrations/
+        __init__.py
+        0001_initial.py
+        0002_farmacia_medicamentos.py
+        0003_delete_farmacia.py
+        0004_initial.py
+      __init__.py
+      admin.py
+      apps.py
+      forms.py
+      models.py
+      tests.py
+  ModeloLaboratorio/
+    Laboratorios/
+      migrations/
+        __init__.py
+        0001_initial.py
+      __init__.py
+      admin.py
+      apps.py
+      forms.py
+      models.py
+      tests.py
+  ModeloMedicamentos/
+    Medicamentos/
+      migrations/
+        __init__.py
+        0001_initial.py
+        0002_remove_medicamento_laboratorio.py
+        0003_medicamento_laboratorio.py
+      __init__.py
+      admin.py
+      apps.py
+      forms.py
+      models.py
+      tests.py
+  ModeloUsuario/
+    Perfiles/
+      migrations/
+        __init__.py
+      __init__.py
+      admin.py
+      apps.py
+      models.py
+      tests.py
+Super/
+  __init__.py
+  asgi.py
+  settings.py
+  urls.py
+  wsgi.py
+Vista/
+  VistaFarmacia/
+    Templates/
+      lista_farm.html
+      modificar_farmacia.html
+      registro_farm.html
+  VistaLaboratorio/
+    Templates/
+      crear_labs.html
+      historial_labs.html
+      labs.html
+      modificar_labs.html
+  VistaMedicamento/
+    Templates/
+      confirmar_eliminar.html
+      editar_medicamento.html
+      lista.html
+      registro.html
+  VistaPrincipal/
+    Templates/
+      base.html
+      home.html
+  VistaUsuario/
+    Templates/
+      perfiles.html
+      signin.html
+      signup.html
+.gitignore
+manage.py
+README_pruebas_integracion.md
+README_pruebas_unitarias.md
+requirements.txt
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="Controlador/ControladorFarmacia/FarmaciaController.py">
+from django.shortcuts import render, redirect
+from Modelo.ModeloFarmacia.Farmacias.models import Farmacia
+from Modelo.ModeloFarmacia.Farmacias.forms import FarmaciaForm
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+from Modelo.ModeloMedicamentos.Medicamentos.models import Medicamento
+from django.shortcuts import get_object_or_404
+
+def registrar_farmacia(request):
+    if request.method == 'POST':
+        form = FarmaciaForm(request.POST)
+        if form.is_valid():
+            # ⬇ Aquí seguimos la estructura orientada a objetos:
+            farmacia = form.save(commit=False)  # Crea una instancia de Farmacia
+            farmacia.save()                     # Guarda la instancia en la base de datos
+            form.save_m2m()                     # Guarda la relación ManyToMany con Laboratorios
+            return redirect('lista_farmacias')
+    else:
+        form = FarmaciaForm()
+    
+    return render(request, 'registro_farm.html', {'form': form})
+
+def lista_farm(request):
+    orden = request.GET.get('orden')
+
+    if orden == 'alfabetico':
+        farmacias = Farmacia.objects.order_by('nombre')
+    elif orden == 'reciente':
+        farmacias = Farmacia.objects.order_by('-id')
+    elif orden == 'laboratorio':
+        farmacias = Farmacia.objects.order_by('laboratorios__nombre')
+    else:
+        farmacias = Farmacia.objects.all()
+
+    laboratorios = Laboratorios.objects.all()
+    medicamentos = Medicamento.objects.all()
+    
+    return render(request, 'lista_farm.html', {
+        'farmacias': farmacias,
+        'laboratorios': laboratorios,
+        'medicamentos': medicamentos
+    })
+
+def modificar_farmacia(request, id):
+    farmacia = get_object_or_404(Farmacia, pk=id)
+    
+    if request.method == 'POST':
+        form = FarmaciaForm(request.POST, instance=farmacia)
+        if form.is_valid():
+            farmacia = form.save(commit=False)
+            farmacia.save()
+            form.save_m2m()
+            return redirect('lista_farmacias')
+    else:
+        form = FarmaciaForm(instance=farmacia)
+    
+    return render(request, 'modificar_farmacia.html', {'form': form})
+</file>
+
+<file path="Controlador/ControladorLaboratorio/LaboratorioController.py">
+from django.shortcuts import get_object_or_404, render, redirect
+from django.http import HttpResponse
+from Modelo.ModeloFarmacia.Farmacias.models import Farmacia
+from Modelo.ModeloLaboratorio.Laboratorios.forms import NuevoLaboratorio
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+from Modelo.ModeloMedicamentos.Medicamentos.models import Medicamento
+
+# Create your views here.
+def labs(request):
+    laboratorio= Laboratorios.objects.all()
+    return render(request, 'labs.html', {
+        'laboratorio': laboratorio
+    })
+
+def crear_labs(request):
+    if request.method == 'GET':
+        return render(request, 'crear_labs.html', {
+                'form': NuevoLaboratorio()
+            })
+    else:
+            Laboratorios.objects.create(nombre=request.POST['nombre'], direccion=request.POST['direccion'])
+            return redirect('/labs/')
+
+def modificar_labs(request, id):
+    laboratorios = get_object_or_404(Laboratorios, pk=id)
+    if request.method == 'POST':
+        form = NuevoLaboratorio(request.POST, instance=laboratorios)
+        if form.is_valid():
+            form.save()
+            return redirect('labs')
+    else:
+        form = NuevoLaboratorio(instance=laboratorios)
+    
+    return render(request, 'modificar_labs.html', {'form': form, 'lab': laboratorios})
+
+def ver_historial(request, id):
+    laboratorio = get_object_or_404(Laboratorios, pk=id)
+    medicamentos = Medicamento.objects.filter(laboratorio=laboratorio)
+    farmacias = Farmacia.objects.filter(laboratorios=laboratorio)
+    return render(request, 'historial_labs.html', {
+        'laboratorio': laboratorio,
+        'medicamentos': medicamentos,
+        'farmacias': farmacias,
+    })
+</file>
+
+<file path="Controlador/ControladorMedicamentos/MedicamentoContrller.py">
+from django.shortcuts import render, redirect
+from Modelo.ModeloMedicamentos.Medicamentos.forms import MedicamentoForm
+from Modelo.ModeloMedicamentos.Medicamentos.models import Medicamento
+
+# Create your views here.
+
+
+def registrar_medicamento(request):
+    if request.method == 'POST':
+        form = MedicamentoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_medicamentos')  # Redirige a una vista de listado
+    else:
+        form = MedicamentoForm()
+    
+    return render(request, 'registro.html', {'form': form})
+
+def lista_medicamentos(request):
+    medicamentos = Medicamento.objects.all()
+    return render(request, 'lista.html', {'medicamentos': medicamentos})
+</file>
+
+<file path="Controlador/ControladorMedicamentos/MedicamentoController.py">
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from Modelo.ModeloMedicamentos.Medicamentos.forms import MedicamentoForm
+from Modelo.ModeloMedicamentos.Medicamentos.models import Medicamento
+
+def registrar_medicamento(request):
+    if request.method == 'POST':
+        form = MedicamentoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_medicamentos')
+    else:
+        form = MedicamentoForm()
+    
+    return render(request, 'registro.html', {'form': form})
+
+def lista_medicamentos(request):
+    medicamentos = Medicamento.objects.all()
+    return render(request, 'lista.html', {'medicamentos': medicamentos})
+
+def editar_medicamento(request, id):
+    medicamento = get_object_or_404(Medicamento, pk=id)
+    if request.method == 'POST':
+        form = MedicamentoForm(request.POST, instance=medicamento)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_medicamentos')
+    else:
+        form = MedicamentoForm(instance=medicamento)
+    
+    return render(request, 'editar_medicamento.html', {'form': form, 'medicamento': medicamento})
+
+def eliminar_medicamento(request, id):
+    medicamento = get_object_or_404(Medicamento, pk=id)
+    if request.method == 'POST':
+        medicamento.delete()
+        messages.success(request, 'Medicamento eliminado correctamente')
+        return redirect('lista_medicamentos')
+    
+    return render(request, 'confirmar_eliminar.html', {'medicamento': medicamento})
+</file>
+
+<file path="Controlador/ControladorUsuario/PerfilController.py">
+from django.shortcuts import render, redirect
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.models import User
+from django.contrib.auth import login, logout, authenticate
+from django.db import IntegrityError
+from django.http import HttpResponse
+
+# Create your views here.
+def home(request):
+    return render(request, 'home.html')
+
+def signup(request):
+
+    if request.method =='GET':
+        return render(request, 'signup.html',{
+        'formUser':UserCreationForm,
+    })
+    else:
+        if request.POST['password1']==request.POST['password2']:
+            try:
+                user=User.objects.create_user(username=request.POST['username'], password=request.POST['password1'], alergias=request.POST['alergia'])
+                user.save()
+
+                login(request, user)
+                return redirect('perfiles')
+            except IntegrityError                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     : 
+                return render(request, 'signup.html',{
+                        'formUser':UserCreationForm,
+                        "error":'usuario ya existe'
+                    })        
+        else:
+            return render(request, 'signup.html',{
+                'formUser':UserCreationForm,
+                "error":'contraseñas no coinciden'
+                })
+
+def perfiles(request):
+    users= User.objects.all()
+    return render(request,'perfiles.html', {'users': users})
+
+def signout(request):
+    logout(request)
+    return redirect('home')
+
+def signin(request):
+    if request.method=='GET':
+        return render(request, 'signin.html',{
+        'form':AuthenticationForm
+    })
+    else:
+        user= authenticate(request, username=request.POST['username'], password=request.POST['password'])
+        
+        if user is None:
+            return render(request, 'signin.html',{
+                'form':AuthenticationForm,
+                "error": 'Usuario o contraseña incorrectas'})
+        else:
+            login(request,user)
+            return redirect('perfiles')
+</file>
+
+<file path="Controlador/integration_tests.py">
+"""
+Pruebas de Integración — ProyectoSoftwareFinal
+
+A diferencia de las pruebas unitarias, estas pruebas verifican que múltiples
+componentes (modelo + formulario + controlador + base de datos) funcionan
+correctamente juntos, simulando flujos reales de usuario de principio a fin.
+
+No se usa ningún mock: todas las operaciones tocan la base de datos en memoria
+y pasan por la pila completa de Django (URL → vista → modelo → BD → respuesta).
+"""
+
+from django.test import TestCase
+from django.urls import reverse
+from django.contrib.auth.models import User
+
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+from Modelo.ModeloMedicamentos.Medicamentos.models import Medicamento
+from Modelo.ModeloFarmacia.Farmacias.models import Farmacia
+
+
+# ---------------------------------------------------------------------------
+# Flujo completo de Medicamento
+# ---------------------------------------------------------------------------
+
+class MedicamentoCRUDIntegrationTest(TestCase):
+    """
+    Verifica el ciclo completo Crear → Listar → Editar → Eliminar de un
+    Medicamento, pasando por las vistas reales en cada paso.
+    """
+
+    def setUp(self):
+        self.laboratorio = Laboratorios.objects.create(
+            nombre='Lab Integración',
+            direccion='Calle Test 1'
+        )
+
+    def test_ciclo_completo_medicamento(self):
+        """Crear → verificar en lista → editar → verificar cambio → eliminar → verificar ausencia."""
+
+        # 1. Registrar medicamento vía POST
+        response = self.client.post(reverse('registrar_medicamento'), {
+            'nombre_comercial': 'Aspirina',
+            'nombre_farmacologico': 'Acido Acetilsalicilico',
+            'componentes': 'Acido acetilsalicilico 500mg',
+            'laboratorio': self.laboratorio.pk,
+        })
+        self.assertRedirects(response, reverse('lista_medicamentos'))
+
+        # 2. Verificar que el medicamento existe en BD
+        self.assertTrue(Medicamento.objects.filter(nombre_comercial='Aspirina').exists())
+        medicamento = Medicamento.objects.get(nombre_comercial='Aspirina')
+
+        # 3. Verificar que aparece en la lista (GET)
+        response = self.client.get(reverse('lista_medicamentos'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(medicamento, response.context['medicamentos'])
+
+        # 4. Editar el medicamento vía POST
+        response = self.client.post(
+            reverse('editar_medicamento', args=[medicamento.pk]), {
+                'nombre_comercial': 'Aspirina Forte',
+                'nombre_farmacologico': 'Acido Acetilsalicilico',
+                'componentes': 'Acido acetilsalicilico 1000mg',
+                'laboratorio': self.laboratorio.pk,
+            }
+        )
+        self.assertRedirects(response, reverse('lista_medicamentos'))
+
+        # 5. Verificar que el cambio se guardó en BD
+        medicamento.refresh_from_db()
+        self.assertEqual(medicamento.nombre_comercial, 'Aspirina Forte')
+        self.assertEqual(medicamento.componentes, 'Acido acetilsalicilico 1000mg')
+
+        # 6. Eliminar el medicamento vía POST
+        response = self.client.post(
+            reverse('eliminar_medicamento', args=[medicamento.pk])
+        )
+        self.assertRedirects(response, reverse('lista_medicamentos'))
+
+        # 7. Verificar que ya no existe en BD ni en la lista
+        self.assertFalse(Medicamento.objects.filter(pk=medicamento.pk).exists())
+        response = self.client.get(reverse('lista_medicamentos'))
+        self.assertNotIn(medicamento, response.context['medicamentos'])
+
+    def test_registrar_medicamento_invalido_no_persiste(self):
+        """Un POST inválido no debe crear ningún medicamento en la BD."""
+        count_antes = Medicamento.objects.count()
+        self.client.post(reverse('registrar_medicamento'), {
+            'nombre_comercial': '',   # campo requerido vacío
+            'nombre_farmacologico': '',
+            'componentes': '',
+        })
+        self.assertEqual(Medicamento.objects.count(), count_antes)
+
+
+# ---------------------------------------------------------------------------
+# Flujo completo de Laboratorio
+# ---------------------------------------------------------------------------
+
+class LaboratorioCRUDIntegrationTest(TestCase):
+    """
+    Verifica el ciclo Crear → Modificar de Laboratorio, y que el historial
+    refleja correctamente los medicamentos y farmacias asociados.
+    """
+
+    def test_ciclo_completo_laboratorio(self):
+        """Crear laboratorio vía POST → modificar → verificar cambio en BD."""
+
+        # 1. Crear laboratorio vía POST
+        response = self.client.post(reverse('crear_labs'), {
+            'nombre': 'Bayer',
+            'direccion': 'Av. Principal 100',
+        })
+        self.assertRedirects(response, '/labs/', fetch_redirect_response=False)
+        self.assertTrue(Laboratorios.objects.filter(nombre='Bayer').exists())
+        lab = Laboratorios.objects.get(nombre='Bayer')
+
+        # 2. Verificar que aparece en la lista de laboratorios (GET)
+        response = self.client.get(reverse('labs'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(lab, response.context['laboratorio'])
+
+        # 3. Modificar el laboratorio vía POST
+        response = self.client.post(
+            reverse('modificar_labs', args=[lab.pk]), {
+                'nombre': 'Bayer Colombia',
+                'direccion': 'Av. Principal 200',
+            }
+        )
+        self.assertRedirects(response, reverse('labs'))
+
+        # 4. Verificar el cambio en BD
+        lab.refresh_from_db()
+        self.assertEqual(lab.nombre, 'Bayer Colombia')
+        self.assertEqual(lab.direccion, 'Av. Principal 200')
+
+    def test_historial_refleja_medicamentos_y_farmacias(self):
+        """
+        El historial de un laboratorio debe mostrar todos sus medicamentos
+        y farmacias asociados creados de forma independiente.
+        """
+        lab = Laboratorios.objects.create(nombre='Pfizer', direccion='Zona Norte')
+
+        # Crear medicamento asociado al laboratorio
+        med = Medicamento.objects.create(
+            nombre_comercial='Ibuprofeno',
+            nombre_farmacologico='Ibuprofeno',
+            componentes='Ibuprofeno 400mg',
+            laboratorio=lab
+        )
+
+        # Crear farmacia asociada al laboratorio
+        farmacia = Farmacia.objects.create(nombre='Farmacia Norte', direccion='Calle 1')
+        farmacia.laboratorios.add(lab)
+
+        # Consultar el historial vía GET
+        response = self.client.get(reverse('historial_labs', args=[lab.pk]))
+        self.assertEqual(response.status_code, 200)
+
+        # Verificar que el contexto contiene el medicamento y la farmacia
+        self.assertIn(med, response.context['medicamentos'])
+        self.assertIn(farmacia, response.context['farmacias'])
+
+    def test_historial_laboratorio_sin_asociaciones(self):
+        """El historial de un laboratorio nuevo muestra listas vacías."""
+        lab = Laboratorios.objects.create(nombre='Lab Nuevo', direccion='Calle 5')
+        response = self.client.get(reverse('historial_labs', args=[lab.pk]))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['medicamentos'].count(), 0)
+        self.assertEqual(response.context['farmacias'].count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Flujo completo de Farmacia
+# ---------------------------------------------------------------------------
+
+class FarmaciaCRUDIntegrationTest(TestCase):
+    """
+    Verifica el ciclo Crear → Listar (con distintos órdenes) → Modificar
+    de Farmacia, incluyendo la relación ManyToMany con Laboratorios.
+    """
+
+    def setUp(self):
+        self.lab1 = Laboratorios.objects.create(nombre='Novartis', direccion='Sector A')
+        self.lab2 = Laboratorios.objects.create(nombre='Roche', direccion='Sector B')
+
+    def test_ciclo_completo_farmacia(self):
+        """Registrar farmacia vía POST → verificar en lista → modificar → verificar cambio."""
+
+        # 1. Registrar farmacia vía POST
+        response = self.client.post(reverse('agregar_farmacia'), {
+            'nombre': 'Droguería Central',
+            'direccion': 'Calle 10',
+            'laboratorios': [self.lab1.pk],
+        })
+        self.assertRedirects(response, reverse('lista_farmacias'))
+
+        # 2. Verificar en BD con relación M2M correcta
+        self.assertTrue(Farmacia.objects.filter(nombre='Droguería Central').exists())
+        farmacia = Farmacia.objects.get(nombre='Droguería Central')
+        self.assertIn(self.lab1, farmacia.laboratorios.all())
+
+        # 3. Verificar que aparece en la lista (GET)
+        response = self.client.get(reverse('lista_farmacias'))
+        self.assertIn(farmacia, response.context['farmacias'])
+
+        # 4. Modificar la farmacia (cambiar nombre y agregar segundo laboratorio)
+        response = self.client.post(
+            reverse('modificar_farmacia', args=[farmacia.pk]), {
+                'nombre': 'Droguería Norte',
+                'direccion': 'Calle 20',
+                'laboratorios': [self.lab1.pk, self.lab2.pk],
+            }
+        )
+        self.assertRedirects(response, reverse('lista_farmacias'))
+
+        # 5. Verificar cambios en BD
+        farmacia.refresh_from_db()
+        self.assertEqual(farmacia.nombre, 'Droguería Norte')
+        self.assertEqual(farmacia.laboratorios.count(), 2)
+        self.assertIn(self.lab2, farmacia.laboratorios.all())
+
+    def test_lista_farmacias_tres_ordenes(self):
+        """
+        La lista de farmacias debe ordenarse correctamente con los tres
+        parámetros de orden disponibles.
+        """
+        Farmacia.objects.create(nombre='Zebra Farmacia', direccion='Dir Z')
+        Farmacia.objects.create(nombre='Alfa Farmacia', direccion='Dir A')
+        Farmacia.objects.create(nombre='Medio Farmacia', direccion='Dir M')
+
+        # Orden alfabético: primera debe ser 'Alfa Farmacia'
+        response = self.client.get(reverse('lista_farmacias') + '?orden=alfabetico')
+        farmacias = list(response.context['farmacias'])
+        self.assertEqual(farmacias[0].nombre, 'Alfa Farmacia')
+        self.assertEqual(farmacias[-1].nombre, 'Zebra Farmacia')
+
+        # Orden reciente: primera debe ser la última creada
+        ultima = Farmacia.objects.order_by('-id').first()
+        response = self.client.get(reverse('lista_farmacias') + '?orden=reciente')
+        farmacias = list(response.context['farmacias'])
+        self.assertEqual(farmacias[0].pk, ultima.pk)
+
+        # Sin orden: retorna todas las farmacias
+        response = self.client.get(reverse('lista_farmacias'))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['farmacias']), 3)
+
+
+# ---------------------------------------------------------------------------
+# Relaciones entre entidades
+# ---------------------------------------------------------------------------
+
+class RelacionesEntidadesIntegrationTest(TestCase):
+    """
+    Verifica que las relaciones entre Laboratorio, Medicamento y Farmacia
+    se comportan correctamente de extremo a extremo.
+    """
+
+    def test_eliminacion_laboratorio_elimina_medicamentos_en_cascada(self):
+        """
+        Al eliminar un laboratorio desde la BD, sus medicamentos deben
+        eliminarse automáticamente (on_delete=CASCADE) y no aparecer en lista.
+        """
+        lab = Laboratorios.objects.create(nombre='Lab Cascada', direccion='Calle 1')
+        med1 = Medicamento.objects.create(
+            nombre_comercial='MedA', nombre_farmacologico='FarmA',
+            componentes='CompA', laboratorio=lab
+        )
+        med2 = Medicamento.objects.create(
+            nombre_comercial='MedB', nombre_farmacologico='FarmB',
+            componentes='CompB', laboratorio=lab
+        )
+
+        # Verificar que los medicamentos aparecen en la lista
+        response = self.client.get(reverse('lista_medicamentos'))
+        self.assertIn(med1, response.context['medicamentos'])
+        self.assertIn(med2, response.context['medicamentos'])
+
+        # Eliminar el laboratorio (CASCADE)
+        lab.delete()
+
+        # Verificar que los medicamentos ya no existen en BD
+        self.assertFalse(Medicamento.objects.filter(pk=med1.pk).exists())
+        self.assertFalse(Medicamento.objects.filter(pk=med2.pk).exists())
+
+        # Verificar que la lista de medicamentos está vacía
+        response = self.client.get(reverse('lista_medicamentos'))
+        self.assertEqual(response.context['medicamentos'].count(), 0)
+
+    def test_farmacia_visible_en_historial_de_sus_laboratorios(self):
+        """
+        Una farmacia asociada a dos laboratorios debe aparecer en el
+        historial de ambos.
+        """
+        lab1 = Laboratorios.objects.create(nombre='Lab X', direccion='Dir X')
+        lab2 = Laboratorios.objects.create(nombre='Lab Y', direccion='Dir Y')
+
+        farmacia = Farmacia.objects.create(nombre='Farmacia Doble', direccion='Centro')
+        farmacia.laboratorios.add(lab1, lab2)
+
+        # Historial de lab1
+        response = self.client.get(reverse('historial_labs', args=[lab1.pk]))
+        self.assertIn(farmacia, response.context['farmacias'])
+
+        # Historial de lab2
+        response = self.client.get(reverse('historial_labs', args=[lab2.pk]))
+        self.assertIn(farmacia, response.context['farmacias'])
+
+    def test_lista_farmacias_incluye_contexto_completo(self):
+        """
+        La vista de lista de farmacias debe entregar laboratorios y
+        medicamentos en el contexto (usados para filtros en el template).
+        """
+        lab = Laboratorios.objects.create(nombre='Lab Contexto', direccion='Av. 1')
+        Medicamento.objects.create(
+            nombre_comercial='MedContexto', nombre_farmacologico='Farm',
+            componentes='Comp', laboratorio=lab
+        )
+        farmacia = Farmacia.objects.create(nombre='Farm Contexto', direccion='Calle 2')
+        farmacia.laboratorios.add(lab)
+
+        response = self.client.get(reverse('lista_farmacias'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(lab, response.context['laboratorios'])
+        self.assertIn(farmacia, response.context['farmacias'])
+
+
+# ---------------------------------------------------------------------------
+# Flujo de autenticación
+# ---------------------------------------------------------------------------
+
+class AutenticacionIntegrationTest(TestCase):
+    """
+    Verifica el flujo completo de inicio de sesión, acceso a páginas
+    protegidas y cierre de sesión.
+    """
+
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username='integracion_user',
+            password='clave_segura_123'
+        )
+
+    def test_flujo_signin_perfiles_signout(self):
+        """
+        Iniciar sesión → acceder a perfiles → cerrar sesión → verificar
+        que la sesión fue destruida.
+        """
+        # 1. Iniciar sesión vía POST
+        response = self.client.post(reverse('signin'), {
+            'username': 'integracion_user',
+            'password': 'clave_segura_123',
+        })
+        self.assertRedirects(response, reverse('perfiles'))
+
+        # 2. Acceder a la página de perfiles (sesión activa)
+        response = self.client.get(reverse('perfiles'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.usuario, response.context['users'])
+
+        # 3. Cerrar sesión
+        response = self.client.get(reverse('signout'))
+        self.assertRedirects(response, reverse('home'))
+
+        # 4. Verificar que la sesión fue destruida (usuario anónimo)
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+
+    def test_credenciales_invalidas_no_autentican(self):
+        """
+        Un POST con contraseña incorrecta no debe iniciar sesión
+        ni redirigir a perfiles.
+        """
+        response = self.client.post(reverse('signin'), {
+            'username': 'integracion_user',
+            'password': 'clave_incorrecta',
+        })
+        # Debe quedarse en la página de signin con error
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Usuario o contraseña incorrectas')
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+
+    def test_multiples_usuarios_visibles_en_perfiles(self):
+        """
+        Todos los usuarios registrados deben aparecer en la vista de perfiles.
+        """
+        User.objects.create_user(username='usuario2', password='clave2')
+        User.objects.create_user(username='usuario3', password='clave3')
+
+        response = self.client.get(reverse('perfiles'))
+        self.assertEqual(response.status_code, 200)
+        # El contexto debe incluir todos los usuarios (el de setUp + los 2 nuevos)
+        self.assertEqual(response.context['users'].count(), 3)
+</file>
+
+<file path="Controlador/tests.py">
+from django.test import TestCase
+from django.urls import reverse
+from unittest.mock import patch
+from django.contrib.auth.models import User
+from django.db import IntegrityError
+
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+from Modelo.ModeloMedicamentos.Medicamentos.models import Medicamento
+from Modelo.ModeloFarmacia.Farmacias.models import Farmacia
+
+
+# ---------------------------------------------------------------------------
+# PerfilController
+# ---------------------------------------------------------------------------
+
+class PerfilControllerTest(TestCase):
+
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username='usuarioexistente',
+            password='clave1234'
+        )
+
+    def test_home_get(self):
+        """GET / retorna 200."""
+        response = self.client.get(reverse('home'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_signup_get(self):
+        """GET /signup/ retorna 200 con el formulario."""
+        response = self.client.get(reverse('signup'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('formUser', response.context)
+
+    def test_signup_post_contrasenas_no_coinciden(self):
+        """POST en /signup/ con contraseñas distintas muestra error."""
+        response = self.client.post(reverse('signup'), {
+            'username': 'nuevo',
+            'password1': 'clave1234',
+            'password2': 'clave_diferente',
+            'alergia': 'ninguna',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'contraseñas no coinciden')
+
+    @patch('Controlador.ControladorUsuario.PerfilController.User.objects.create_user')
+    def test_signup_post_exitoso(self, mock_create):
+        """POST en /signup/ con datos válidos crea usuario y redirige."""
+        # self.usuario se crea en setUp, ANTES de que el mock esté activo
+        mock_create.return_value = self.usuario
+        response = self.client.post(reverse('signup'), {
+            'username': 'nuevousuario',
+            'password1': 'clave1234',
+            'password2': 'clave1234',
+            'alergia': 'ninguna',
+        })
+        self.assertRedirects(response, reverse('perfiles'))
+
+    @patch('Controlador.ControladorUsuario.PerfilController.User.objects.create_user')
+    def test_signup_post_usuario_duplicado(self, mock_create):
+        """POST en /signup/ con usuario existente muestra error."""
+        mock_create.side_effect = IntegrityError
+        response = self.client.post(reverse('signup'), {
+            'username': 'usuarioexistente',
+            'password1': 'clave1234',
+            'password2': 'clave1234',
+            'alergia': 'ninguna',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'usuario ya existe')
+
+    def test_perfiles_get(self):
+        """GET /perfiles/ retorna 200 con lista de usuarios."""
+        response = self.client.get(reverse('perfiles'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('users', response.context)
+
+    def test_signin_get(self):
+        """GET /signin/ retorna 200 con el formulario de autenticación."""
+        response = self.client.get(reverse('signin'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+
+    def test_signin_post_credenciales_validas(self):
+        """POST en /signin/ con credenciales correctas redirige a /perfiles/."""
+        response = self.client.post(reverse('signin'), {
+            'username': 'usuarioexistente',
+            'password': 'clave1234',
+        })
+        self.assertRedirects(response, reverse('perfiles'))
+
+    def test_signin_post_credenciales_invalidas(self):
+        """POST en /signin/ con credenciales incorrectas muestra error."""
+        response = self.client.post(reverse('signin'), {
+            'username': 'usuarioexistente',
+            'password': 'clave_incorrecta',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Usuario o contraseña incorrectas')
+
+    def test_signout(self):
+        """GET /logout/ cierra sesión y redirige a /."""
+        self.client.login(username='usuarioexistente', password='clave1234')
+        response = self.client.get(reverse('signout'))
+        self.assertRedirects(response, reverse('home'))
+
+
+# ---------------------------------------------------------------------------
+# MedicamentoController
+# ---------------------------------------------------------------------------
+
+class MedicamentoControllerTest(TestCase):
+
+    def setUp(self):
+        self.laboratorio = Laboratorios.objects.create(
+            nombre='Lab Prueba',
+            direccion='Calle 99'
+        )
+        self.medicamento = Medicamento.objects.create(
+            nombre_comercial='Ibuprofeno',
+            nombre_farmacologico='Ibuprofeno',
+            componentes='Ibuprofeno 400mg',
+            laboratorio=self.laboratorio
+        )
+
+    def test_lista_medicamentos_get(self):
+        """GET /lista/ retorna 200 con la lista de medicamentos en el contexto."""
+        response = self.client.get(reverse('lista_medicamentos'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('medicamentos', response.context)
+
+    def test_registrar_medicamento_get(self):
+        """GET /registrar/ retorna 200 con el formulario vacío."""
+        response = self.client.get(reverse('registrar_medicamento'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+
+    def test_registrar_medicamento_post_valido(self):
+        """POST válido en /registrar/ crea medicamento y redirige a la lista."""
+        data = {
+            'nombre_comercial': 'Nuevo Med',
+            'nombre_farmacologico': 'Nuevo Farmacologico',
+            'componentes': 'Componente X 500mg',
+            'laboratorio': self.laboratorio.pk,
+        }
+        response = self.client.post(reverse('registrar_medicamento'), data)
+        self.assertRedirects(response, reverse('lista_medicamentos'))
+        self.assertTrue(Medicamento.objects.filter(nombre_comercial='Nuevo Med').exists())
+
+    def test_registrar_medicamento_post_invalido(self):
+        """POST sin datos en /registrar/ muestra el formulario con errores."""
+        response = self.client.post(reverse('registrar_medicamento'), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].errors)
+
+    def test_editar_medicamento_get(self):
+        """GET /editar/<id>/ retorna 200 con el medicamento precargado."""
+        response = self.client.get(
+            reverse('editar_medicamento', args=[self.medicamento.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+        self.assertIn('medicamento', response.context)
+
+    def test_editar_medicamento_get_404(self):
+        """GET /editar/<id_inexistente>/ retorna 404."""
+        response = self.client.get(
+            reverse('editar_medicamento', args=[9999])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_editar_medicamento_post_valido(self):
+        """POST válido en /editar/<id>/ actualiza medicamento y redirige."""
+        data = {
+            'nombre_comercial': 'Ibuprofeno Modificado',
+            'nombre_farmacologico': 'Ibuprofeno',
+            'componentes': 'Ibuprofeno 600mg',
+            'laboratorio': self.laboratorio.pk,
+        }
+        response = self.client.post(
+            reverse('editar_medicamento', args=[self.medicamento.pk]), data
+        )
+        self.assertRedirects(response, reverse('lista_medicamentos'))
+        self.medicamento.refresh_from_db()
+        self.assertEqual(self.medicamento.nombre_comercial, 'Ibuprofeno Modificado')
+
+    def test_eliminar_medicamento_get(self):
+        """GET /eliminar/<id>/ retorna 200 con la página de confirmación."""
+        response = self.client.get(
+            reverse('eliminar_medicamento', args=[self.medicamento.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('medicamento', response.context)
+
+    def test_eliminar_medicamento_post(self):
+        """POST en /eliminar/<id>/ elimina el medicamento y redirige."""
+        response = self.client.post(
+            reverse('eliminar_medicamento', args=[self.medicamento.pk])
+        )
+        self.assertRedirects(response, reverse('lista_medicamentos'))
+        self.assertFalse(
+            Medicamento.objects.filter(pk=self.medicamento.pk).exists()
+        )
+
+
+# ---------------------------------------------------------------------------
+# LaboratorioController
+# ---------------------------------------------------------------------------
+
+class LaboratorioControllerTest(TestCase):
+
+    def setUp(self):
+        self.laboratorio = Laboratorios.objects.create(
+            nombre='Lab Central',
+            direccion='Av. Central 5'
+        )
+
+    def test_labs_get(self):
+        """GET /labs/ retorna 200 con la lista de laboratorios en el contexto."""
+        response = self.client.get(reverse('labs'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('laboratorio', response.context)
+
+    def test_crear_labs_get(self):
+        """GET /crear_labs/ retorna 200 con el formulario vacío."""
+        response = self.client.get(reverse('crear_labs'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+
+    def test_crear_labs_post_valido(self):
+        """POST válido en /crear_labs/ crea laboratorio y redirige a /labs/."""
+        data = {'nombre': 'Nuevo Lab', 'direccion': 'Calle 200'}
+        response = self.client.post(reverse('crear_labs'), data)
+        self.assertRedirects(response, '/labs/', fetch_redirect_response=False)
+        self.assertTrue(Laboratorios.objects.filter(nombre='Nuevo Lab').exists())
+
+    def test_modificar_labs_get(self):
+        """GET /modificar_labs/<id>/ retorna 200 con el formulario precargado."""
+        response = self.client.get(
+            reverse('modificar_labs', args=[self.laboratorio.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+
+    def test_modificar_labs_get_404(self):
+        """GET /modificar_labs/<id_inexistente>/ retorna 404."""
+        response = self.client.get(reverse('modificar_labs', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+    def test_modificar_labs_post_valido(self):
+        """POST válido en /modificar_labs/<id>/ actualiza y redirige a labs."""
+        data = {'nombre': 'Lab Modificado', 'direccion': 'Nueva Dirección 10'}
+        response = self.client.post(
+            reverse('modificar_labs', args=[self.laboratorio.pk]), data
+        )
+        self.assertRedirects(response, reverse('labs'))
+        self.laboratorio.refresh_from_db()
+        self.assertEqual(self.laboratorio.nombre, 'Lab Modificado')
+
+    def test_ver_historial(self):
+        """GET /ver_historial/<id>/ retorna 200 con medicamentos y farmacias."""
+        response = self.client.get(
+            reverse('historial_labs', args=[self.laboratorio.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('laboratorio', response.context)
+        self.assertIn('medicamentos', response.context)
+        self.assertIn('farmacias', response.context)
+
+    def test_ver_historial_404(self):
+        """GET /ver_historial/<id_inexistente>/ retorna 404."""
+        response = self.client.get(reverse('historial_labs', args=[9999]))
+        self.assertEqual(response.status_code, 404)
+
+
+# ---------------------------------------------------------------------------
+# FarmaciaController
+# ---------------------------------------------------------------------------
+
+class FarmaciaControllerTest(TestCase):
+
+    def setUp(self):
+        self.laboratorio = Laboratorios.objects.create(
+            nombre='Lab Farmacia',
+            direccion='Sector Norte'
+        )
+        self.farmacia = Farmacia.objects.create(
+            nombre='Droguería Central',
+            direccion='Calle 45'
+        )
+        self.farmacia.laboratorios.add(self.laboratorio)
+
+    def test_lista_farmacias_get(self):
+        """GET /lista_farm/ retorna 200 con farmacias, laboratorios y medicamentos."""
+        response = self.client.get(reverse('lista_farmacias'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('farmacias', response.context)
+        self.assertIn('laboratorios', response.context)
+        self.assertIn('medicamentos', response.context)
+
+    def test_lista_farmacias_orden_alfabetico(self):
+        """GET /lista_farm/?orden=alfabetico ordena farmacias por nombre."""
+        Farmacia.objects.create(nombre='AAA Farmacia', direccion='Calle 1')
+        response = self.client.get(
+            reverse('lista_farmacias') + '?orden=alfabetico'
+        )
+        self.assertEqual(response.status_code, 200)
+        farmacias = list(response.context['farmacias'])
+        self.assertEqual(farmacias[0].nombre, 'AAA Farmacia')
+
+    def test_lista_farmacias_orden_reciente(self):
+        """GET /lista_farm/?orden=reciente ordena farmacias por -id."""
+        farmacia_nueva = Farmacia.objects.create(nombre='Última Farmacia', direccion='Calle 99')
+        response = self.client.get(
+            reverse('lista_farmacias') + '?orden=reciente'
+        )
+        self.assertEqual(response.status_code, 200)
+        farmacias = list(response.context['farmacias'])
+        self.assertEqual(farmacias[0].pk, farmacia_nueva.pk)
+
+    def test_registrar_farmacia_get(self):
+        """GET /registro_farm/ retorna 200 con el formulario vacío."""
+        response = self.client.get(reverse('agregar_farmacia'))
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+
+    def test_registrar_farmacia_post_valido(self):
+        """POST válido en /registro_farm/ crea farmacia y redirige a la lista."""
+        data = {
+            'nombre': 'Nueva Farmacia',
+            'direccion': 'Carrera 10',
+            'laboratorios': [self.laboratorio.pk],
+        }
+        response = self.client.post(reverse('agregar_farmacia'), data)
+        self.assertRedirects(response, reverse('lista_farmacias'))
+        self.assertTrue(Farmacia.objects.filter(nombre='Nueva Farmacia').exists())
+
+    def test_registrar_farmacia_post_invalido(self):
+        """POST sin datos en /registro_farm/ muestra el formulario con errores."""
+        response = self.client.post(reverse('agregar_farmacia'), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['form'].errors)
+
+    def test_modificar_farmacia_get(self):
+        """GET /farmacias/modificar/<id>/ retorna 200 con el formulario precargado."""
+        response = self.client.get(
+            reverse('modificar_farmacia', args=[self.farmacia.pk])
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('form', response.context)
+
+    def test_modificar_farmacia_get_404(self):
+        """GET /farmacias/modificar/<id_inexistente>/ retorna 404."""
+        response = self.client.get(
+            reverse('modificar_farmacia', args=[9999])
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_modificar_farmacia_post_valido(self):
+        """POST válido en /farmacias/modificar/<id>/ actualiza farmacia y redirige."""
+        data = {
+            'nombre': 'Droguería Modificada',
+            'direccion': 'Nueva Dirección',
+            'laboratorios': [self.laboratorio.pk],
+        }
+        response = self.client.post(
+            reverse('modificar_farmacia', args=[self.farmacia.pk]), data
+        )
+        self.assertRedirects(response, reverse('lista_farmacias'))
+        self.farmacia.refresh_from_db()
+        self.assertEqual(self.farmacia.nombre, 'Droguería Modificada')
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/migrations/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/migrations/0001_initial.py">
+# Generated by Django 4.2.21 on 2025-05-26 20:33
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Farmacia',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('nombre', models.CharField(max_length=100)),
+            ],
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/migrations/0002_farmacia_medicamentos.py">
+# Generated by Django 4.2.21 on 2025-05-26 23:10
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('Medicamentos', '0003_medicamento_laboratorio'),
+        ('Farmacias', '0001_initial'),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name='farmacia',
+            name='medicamentos',
+            field=models.ManyToManyField(to='Medicamentos.medicamento'),
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/migrations/0003_delete_farmacia.py">
+# Generated by Django 4.2.21 on 2025-05-27 02:10
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('Farmacias', '0002_farmacia_medicamentos'),
+    ]
+
+    operations = [
+        migrations.DeleteModel(
+            name='Farmacia',
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/migrations/0004_initial.py">
+# Generated by Django 4.2.21 on 2025-05-27 03:33
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+        ('Laboratorios', '0001_initial'),
+        ('Farmacias', '0003_delete_farmacia'),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Farmacia',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('nombre', models.CharField(max_length=100)),
+                ('direccion', models.CharField(max_length=100)),
+                ('laboratorios', models.ManyToManyField(related_name='farmacias', to='Laboratorios.laboratorios')),
+            ],
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/admin.py">
+from django.contrib import admin
+
+# Register your models here.
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/apps.py">
+from django.apps import AppConfig
+
+
+class FarmaciasConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'Modelo.ModeloFarmacia.Farmacias'
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/forms.py">
+from django import forms
+from .models import Farmacia
+
+class FarmaciaForm(forms.ModelForm):
+    class Meta:
+        model = Farmacia
+        fields = '__all__'
+#        widgets = {
+#            'componentes': forms.Textarea(attrs={'rows': 3}),
+#        }
+#        labels = {
+#            'nombre_comercial': 'Nombre Comercial del Medicamento',
+#            'nombre_farmacologico': 'Nombre Farmacológico (DCI)',
+#        }
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/models.py">
+from django.db import models
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+
+class Farmacia(models.Model):
+    nombre = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=100)
+    laboratorios = models.ManyToManyField(Laboratorios, related_name='farmacias')
+    
+    def __str__(self):
+        return self.nombre
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/migrations/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/migrations/0001_initial.py">
+# Generated by Django 4.2.21 on 2025-05-26 21:20
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Laboratorios',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('nombre', models.CharField(max_length=100)),
+                ('direccion', models.CharField(max_length=100)),
+            ],
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/admin.py">
+from django.contrib import admin
+
+# Register your models here.
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/apps.py">
+from django.apps import AppConfig
+
+
+class LaboratoriosConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'Modelo.ModeloLaboratorio.Laboratorios'
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/forms.py">
+from django import forms
+from .models import Laboratorios
+
+class NuevoLaboratorio(forms.ModelForm):
+    nombre = forms.CharField(label="ingrese nombre del laboratorio", max_length=200)
+    direccion = forms.CharField(label="ingrese la direccion del laboratorio", max_length=200)
+
+    class Meta:
+        model = Laboratorios
+        fields = ['nombre', 'direccion']
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/models.py">
+from django.db import models
+
+# Create your models here.
+class Laboratorios(models.Model):
+    nombre = models.CharField(max_length=100)
+    direccion = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.nombre
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/migrations/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/migrations/0001_initial.py">
+# Generated by Django 4.2.21 on 2025-05-26 04:17
+
+from django.db import migrations, models
+
+
+class Migration(migrations.Migration):
+
+    initial = True
+
+    dependencies = [
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name='Medicamento',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('nombre_comercial', models.CharField(max_length=100, verbose_name='Nombre Comercial')),
+                ('nombre_farmacologico', models.CharField(max_length=100, verbose_name='Nombre Farmacológico')),
+                ('componentes', models.TextField(verbose_name='Componentes')),
+                ('laboratorio', models.CharField(max_length=100, verbose_name='Laboratorio Fabricante')),
+            ],
+            options={
+                'verbose_name': 'Medicamento',
+                'verbose_name_plural': 'Medicamentos',
+                'ordering': ['nombre_comercial'],
+            },
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/migrations/0002_remove_medicamento_laboratorio.py">
+# Generated by Django 4.2.21 on 2025-05-26 20:39
+
+from django.db import migrations
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('Medicamentos', '0001_initial'),
+    ]
+
+    operations = [
+        migrations.RemoveField(
+            model_name='medicamento',
+            name='laboratorio',
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/migrations/0003_medicamento_laboratorio.py">
+# Generated by Django 4.2.21 on 2025-05-26 21:35
+
+from django.db import migrations, models
+import django.db.models.deletion
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ('Laboratorios', '0001_initial'),
+        ('Medicamentos', '0002_remove_medicamento_laboratorio'),
+    ]
+
+    operations = [
+        migrations.AddField(
+            model_name='medicamento',
+            name='laboratorio',
+            field=models.ForeignKey(default=1, on_delete=django.db.models.deletion.CASCADE, to='Laboratorios.laboratorios'),
+        ),
+    ]
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/admin.py">
+from django.contrib import admin
+
+# Register your models here.
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/apps.py">
+from django.apps import AppConfig
+
+
+class MedicamentosConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'Modelo.ModeloMedicamentos.Medicamentos'
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/forms.py">
+from django import forms
+from .models import Medicamento
+
+class MedicamentoForm(forms.ModelForm):
+    class Meta:
+        model = Medicamento
+        fields = '__all__'
+        widgets = {
+            'componentes': forms.Textarea(attrs={'rows': 3}),
+        }
+        labels = {
+            'nombre_comercial': 'Nombre Comercial del Medicamento',
+            'nombre_farmacologico': 'Nombre Farmacológico (DCI)',
+        }
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/models.py">
+from django.db import models
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+
+# Create your models here.
+class Medicamento(models.Model):
+    nombre_comercial = models.CharField(max_length=100, verbose_name="Nombre Comercial")
+    nombre_farmacologico = models.CharField(max_length=100, verbose_name="Nombre Farmacológico")
+    componentes = models.TextField(verbose_name="Componentes")
+    laboratorio=models.ForeignKey(Laboratorios, on_delete=models.CASCADE, default=1)
+
+    class Meta:
+        verbose_name = "Medicamento"
+        verbose_name_plural = "Medicamentos"
+        ordering = ['nombre_comercial']
+    
+    def __str__(self):
+        return f"{self.nombre_comercial} ({self.laboratorio.nombre})"
+</file>
+
+<file path="Modelo/ModeloUsuario/Perfiles/migrations/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloUsuario/Perfiles/__init__.py">
+
+</file>
+
+<file path="Modelo/ModeloUsuario/Perfiles/admin.py">
+from django.contrib import admin
+from Modelo.ModeloMedicamentos.Medicamentos.models import Medicamento
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+from Modelo.ModeloFarmacia.Farmacias.models import Farmacia
+
+# Register your models here.
+admin.site.register(Medicamento)
+admin.site.register(Laboratorios)
+admin.site.register(Farmacia)
+</file>
+
+<file path="Modelo/ModeloUsuario/Perfiles/apps.py">
+from django.apps import AppConfig
+
+
+class PerfilesConfig(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = 'Modelo.ModeloUsuario.Perfiles'
+</file>
+
+<file path="Modelo/ModeloUsuario/Perfiles/models.py">
+from django.db import models
+
+# Create your models here.
+</file>
+
+<file path="Super/__init__.py">
+
+</file>
+
+<file path="Super/asgi.py">
+"""
+ASGI config for Super project.
+
+It exposes the ASGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
+"""
+
+import os
+
+from django.core.asgi import get_asgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Super.settings')
+
+application = get_asgi_application()
+</file>
+
+<file path="Super/urls.py">
+"""
+URL configuration for Super project.
+
+The `urlpatterns` list routes URLs to views. For more information please see:
+    https://docs.djangoproject.com/en/4.2/topics/http/urls/
+Examples:
+Function views
+    1. Add an import:  from my_app import views
+    2. Add a URL to urlpatterns:  path('', views.home, name='home')
+Class-based views
+    1. Add an import:  from other_app.views import Home
+    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
+Including another URLconf
+    1. Import the include() function: from django.urls import include, path
+    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+"""
+from django.contrib import admin
+from django.urls import path
+from Controlador.ControladorUsuario import PerfilController
+from Controlador.ControladorMedicamentos import MedicamentoController
+from Controlador.ControladorFarmacia import FarmaciaController
+from Controlador.ControladorLaboratorio import LaboratorioController
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', PerfilController.home, name='home'),
+    path('signup/', PerfilController.signup, name='signup'),
+    path('perfiles/', PerfilController.perfiles, name='perfiles'),
+    path('logout/', PerfilController.signout, name='signout'),
+    path('signin/', PerfilController.signin, name='signin'),
+    path('registrar/', MedicamentoController.registrar_medicamento, name='registrar_medicamento'),
+    path('lista/', MedicamentoController.lista_medicamentos, name='lista_medicamentos'),
+    path('editar/<int:id>/',  MedicamentoController.editar_medicamento, name='editar_medicamento'),
+    path('eliminar/<int:id>/', MedicamentoController.eliminar_medicamento, name='eliminar_medicamento'),
+    path('labs/', LaboratorioController.labs, name='labs'),
+    path('crear_labs/', LaboratorioController.crear_labs, name='crear_labs'),
+    path('modificar_labs/<int:id>/', LaboratorioController.modificar_labs, name='modificar_labs'),
+    path('ver_historial/<int:id>/', LaboratorioController.ver_historial, name='historial_labs'),
+    path('farmacias/modificar/<int:id>/', FarmaciaController.modificar_farmacia, name='modificar_farmacia'),
+    path('registro_farm/', FarmaciaController.registrar_farmacia, name='agregar_farmacia'),
+    path('lista_farm/', FarmaciaController.lista_farm, name='lista_farmacias'),
+]
+</file>
+
+<file path="Super/wsgi.py">
+"""
+WSGI config for Super project.
+
+It exposes the WSGI callable as a module-level variable named ``application``.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
+"""
+
+import os
+
+from django.core.wsgi import get_wsgi_application
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Super.settings')
+
+application = get_wsgi_application()
+</file>
+
+<file path="Vista/VistaFarmacia/Templates/lista_farm.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="text-center mb-4 text-primary">
+        <i class="bi bi-shop"></i> Farmacias y sus catálogos
+    </h1>
+
+    <!-- Botón Organizar Catálogo -->
+    <div class="d-flex justify-content-end mb-3">
+        <div class="dropdown">
+            <button class="btn btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-filter"></i> Organizar Catálogo
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="?orden=alfabetico">Orden Alfabético</a></li>
+                <li><a class="dropdown-item" href="?orden=reciente">Última farmacia agregada</a></li>
+                <li><a class="dropdown-item" href="?orden=laboratorio">Por Laboratorio</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Tarjetas de farmacias -->
+    <div class="row g-4">
+        {% for farmacia in farmacias %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="h5 mb-0">
+                        <i class="bi bi-building"></i> {{ farmacia.nombre }}
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">
+                        <i class="bi bi-geo-alt-fill text-secondary"></i>
+                        <strong>Ubicación:</strong> {{ farmacia.direccion }}
+                    </p>
+
+                    <!-- Laboratorios asociados -->
+                    <h6 class="mt-3 text-secondary">
+                        <i class="bi bi-flask"></i> Laboratorios asociados
+                    </h6>
+                    <ul class="list-group list-group-flush">
+                        {% for lab in farmacia.laboratorios.all %}
+                        <li class="list-group-item">
+                            <i class="bi bi-building-fill text-primary"></i> {{ lab.nombre }}
+                        </li>
+                        {% empty %}
+                        <li class="list-group-item text-muted">No tiene laboratorios asociados</li>
+                        {% endfor %}
+                    </ul>
+
+                    <!-- Medicamentos -->
+                    <h5 class="mt-3 text-secondary">
+                        <i class="bi bi-capsule"></i> Medicamentos
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nombre</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for medicamento in medicamentos %}
+                                {% if medicamento.laboratorio in farmacia.laboratorios.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ medicamento.nombre_comercial }}</strong><br>
+                                        <small class="text-muted">{{ medicamento.nombre_farmacologico }}</small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Botón Modificar -->
+                <div class="card-footer bg-transparent">
+                    <a href="{% url 'modificar_farmacia' farmacia.id %}" class="btn btn-sm btn-outline-primary w-100">
+                        <i class="bi bi-pencil-square"></i> Modificar
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaFarmacia/Templates/modificar_farmacia.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <div class="form-header">
+            <h2>Modificar Farmacia</h2>
+            <p class="text-muted">Modifique los campos necesarios</p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_nombre" class="form-label required-field">Nombre</label>
+                    {{ form.nombre }}
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_direccion" class="form-label required-field">Dirección</label>
+                {{ form.direccion }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_laboratorios" class="form-label">Laboratorios asociados</label>
+                {{ form.laboratorios }}
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="{% url 'lista_farmacias' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaFarmacia/Templates/registro_farm.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <div class="form-header">
+            <h2>Registro de Nueva Farmacia</h2>
+            <p class="text-muted">Complete todos los campos obligatorios</p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            {{ form.as_p }}
+
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="reset" class="btn btn-secondary me-md-2">Limpiar Formulario</button>
+                <button type="submit" class="btn btn-primary">Guardar Farmacia</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaLaboratorio/Templates/crear_labs.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Laboratorio</title>
+    <!-- Bootstrap CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h1 class="h4 mb-0">
+                            <i class="bi bi-plus-circle"></i> Crear Laboratorio
+                        </h1>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" class="needs-validation" novalidate>
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label for="id_nombre" class="form-label">Nombre del Laboratorio</label>
+                                {{ form.nombre }}
+                                <div class="invalid-feedback">Por favor ingrese el nombre del laboratorio.</div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="id_direccion" class="form-label">Dirección</label>
+                                {{ form.direccion }}
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-save"></i> Guardar
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Estilo adicional mínimo para los campos del formulario -->
+    <style>
+        #id_nombre, #id_direccion {
+            width: 100%;
+            padding: 0.375rem 0.75rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+        }
+    </style>
+</body>
+</html>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaLaboratorio/Templates/historial_labs.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container py-4">
+    <h2 class="mb-4 text-primary">
+        <i class="bi bi-clock-history"></i> Historial de medicamentos agregados a farmacias por el laboratorio: {{ laboratorio.nombre }}
+    </h2>
+    <h4 class="mt-4">Medicamentos de este laboratorio:</h4>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Nombre Comercial</th>
+                <th>Nombre Farmacológico</th>
+                <th>Componentes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for medicamento in medicamentos %}
+            <tr>
+                <td>{{ medicamento.nombre_comercial }}</td>
+                <td>{{ medicamento.nombre_farmacologico }}</td>
+                <td>{{ medicamento.componentes }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No hay medicamentos registrados para este laboratorio.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <a href="/labs/" class="btn btn-secondary mt-3">Volver a laboratorios</a>
+</div>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaLaboratorio/Templates/labs.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listado de Laboratorios</title>
+    <!-- Bootstrap CSS via CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+</head>
+<body>
+    <div class="container py-4">
+        <h1 class="text-center mb-4 text-primary">
+            <i class="bi bi-building"></i> Laboratorios
+        </h1>
+
+        <div class="row g-4">
+            {% for lab in laboratorio %}
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 shadow-sm border-info">
+                    <div class="card-header bg-info text-white">
+                        <h2 class="h5 mb-0">
+                            <i class="bi bi-house-gear"></i> {{ lab.nombre }}
+                        </h2>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">
+                            <i class="bi bi-geo-alt-fill"></i> 
+                            <strong>Dirección:</strong> {{ lab.direccion }}
+                        </p>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'modificar_labs' lab.id %}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i> Editar
+                            </a>
+                            <a href="{% url 'historial_labs' lab.id %}" class="btn btn-sm btn-warning">
+                                <i class="bi bi-pencil"></i> ver historial
+                            </a>
+                            <a href="#" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle with Popper via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaLaboratorio/Templates/modificar_labs.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <div class="form-header">
+            <h2>modificar laboratorio</h2>
+            <p class="text-muted">Modifique los campos necesarios</p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_nombre" class="form-label required-field">Nombre</label>
+                    {{ form.nombre }}
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_direccion" class="form-label required-field">direccion</label>
+                    {{ form.direccion }}
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="{% url 'labs' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaMedicamento/Templates/confirmar_eliminar.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h4>Confirmar Eliminación</h4>
+        </div>
+        <div class="card-body">
+            <p>¿Está seguro que desea eliminar el medicamento <strong>{{ medicamento.nombre_comercial }}</strong> del laboratorio <strong>{{ medicamento.laboratorio }}</strong>?</p>
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="d-flex justify-content-end">
+                    <a href="{% url 'lista_medicamentos' %}" class="btn btn-secondary me-2">Cancelar</a>
+                    <button type="submit" class="btn btn-danger">Confirmar Eliminación</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaMedicamento/Templates/editar_medicamento.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <div class="form-header">
+            <h2>Editar Medicamento</h2>
+            <p class="text-muted">Modifique los campos necesarios</p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_nombre_comercial" class="form-label required-field">Nombre Comercial</label>
+                    {{ form.nombre_comercial }}
+                    <div class="form-text">Nombre de marca del medicamento</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="id_nombre_farmacologico" class="form-label required-field">Nombre Farmacológico</label>
+                    {{ form.nombre_farmacologico }}
+                    <div class="form-text">Denominación Común Internacional (DCI).</div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_componentes" class="form-label required-field">Componentes</label>
+                    {{ form.componentes }}
+                <div class="form-text">Lista de principios activos, separados por comas</div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_laboratorio" class="form-label required-field">Laboratorio Fabricante</label>
+                    {{ form.laboratorio }}
+                </div>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <a href="{% url 'lista_medicamentos' %}" class="btn btn-secondary me-md-2">Cancelar</a>
+                <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaMedicamento/Templates/lista.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Medicamentos Registrados</h2>
+    
+    <div class="mb-3">
+        <a href="{% url 'registrar_medicamento' %}" class="btn btn-success">Nuevo Medicamento</a>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nombre Comercial</th>
+                    <th>Nombre Farmacológico</th>
+                    <th>Laboratorio</th>
+                    <th>Componentes</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for medicamento in medicamentos %}
+                <tr>
+                    <td>{{ medicamento.nombre_comercial }}</td>
+                    <td>{{ medicamento.nombre_farmacologico }}</td>
+                    <td>{{ medicamento.laboratorio }}</td>
+                    <td>{{ medicamento.componentes|truncatechars:50 }}</td>
+                    <td>
+                        <a href="{% url 'editar_medicamento' medicamento.id %}" class="btn btn-sm btn-warning">Editar</a>
+                        <a href="{% url 'eliminar_medicamento' medicamento.id %}" class="btn btn-sm btn-danger">Eliminar</a>
+                        
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No hay medicamentos registrados</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaMedicamento/Templates/registro.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <div class="form-container">
+        <div class="form-header">
+            <h2>Registro de Nuevo Medicamento</h2>
+            <p class="text-muted">Complete todos los campos obligatorios</p>
+        </div>
+        
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_nombre_comercial" class="form-label required-field">Nombre Comercial</label>
+                    {{ form.nombre_comercial }}
+                    <div class="form-text">Nombre de marca del medicamento</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="id_nombre_farmacologico" class="form-label required-field">Nombre Farmacológico</label>
+                    {{ form.nombre_farmacologico }}
+                    <div class="form-text">Denominación Común Internacional (DCI).</div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label for="id_componentes" class="form-label required-field">Componentes</label>
+                {{ form.componentes }}
+                <div class="form-text">Lista de principios activos, separados por comas</div>
+            </div>
+            
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="id_laboratorio" class="form-label required-field">Laboratorio Fabricante</label>
+                    {{ form.laboratorio }}
+                </div>
+                <!--<div class="col-md-6">
+                    <label for="id_concentracion" class="form-label">Concentración</label>
+                    {{ form.concentracion }}
+                    <div class="form-text">Ej: 500mg, 20mg/mL</div>
+                </div>
+            </div>-->
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="reset" class="btn btn-secondary me-md-2">Limpiar Formulario</button>
+                <button type="submit" class="btn btn-primary">Registrar Medicamento</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaPrincipal/Templates/base.html">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proyecto software</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .form-container {
+            max-width: 800px;
+            margin: 30px auto;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .form-header {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #0d6efd;
+        }
+        .required-field::after {
+            content: " *";
+            color: red;
+        }
+        body {
+            background-color: #f8f9fa;
+        }
+        .navbar-custom {
+            background-color: #0d6efd;
+        }
+        .navbar-custom .navbar-nav .nav-link {
+            color: white;
+        }
+        .navbar-custom .navbar-brand {
+            color: white;
+            font-weight: bold;
+        }
+        .card-custom {
+            border-color: #0d6efd;
+            margin-bottom: 20px;
+        }
+        .card-custom .card-header {
+            background-color: #0d6efd;
+            color: white;
+        }
+        .btn-primary-custom {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom mb-4">
+        <div class="container">
+            <a class="navbar-brand" href="/">Proyecto Software</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/">Home</a>
+                    </li>
+                    
+                    {% if user.is_superuser == 1 %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/perfiles/">Perfiles</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/registrar/">Añadir medicamentos</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'labs' %}">Laboratorios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'crear_labs' %}">Crear laboratorios</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/registro_farm/">Añadir farmacia</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/lista_farm/">Farmacias</a>
+                    </li>
+                    {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/lista/">Medicamentos</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/logout/">Cerrar la sesión</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/signup/">Registrarse</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/signin/">Iniciar sesión</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <!-- Script de Bootstrap Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
+</file>
+
+<file path="Vista/VistaPrincipal/Templates/home.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card card-custom">
+    <div class="card-header">
+        <h1 class="text-center">MediSearch</h1>
+    </div>
+    <div class="card-body">
+        <p class="lead">Bienvenido a MediSearch! Su Buscador de medicamentos de confianza</p>
+    </div>
+</div>
+
+<!-- Script de Bootstrap Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaUsuario/Templates/perfiles.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="card card-custom">
+    <div class="card-header">
+        <h1 class="text-center">Perfiles de Usuarios</h1>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for user in users %}
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-body" style="display:flex; flex-direction:row; align-items:center;">
+                        <div style="flex:6;">
+                            <h3 class="card-title">{{ user.username }}</h3>
+                            {% if user.is_superuser == 1 %}
+                                <span class="badge bg-primary">Administrador</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Usuario ordinario</span>
+                            {% endif %}
+                            <p class="card-text mt-2"><strong>Alergias:</strong> {{ user.alergias }}</p>
+                        </div>
+                        <div style="flex:1;">
+                            <a href="#" class="btn btn-sm btn-warning">Editar</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Script de Bootstrap Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaUsuario/Templates/signin.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h1 class="text-center">Iniciar Sesión</h1>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                
+                <form action="/signin/" method="post">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-primary-custom" type="submit">Iniciar Sesión</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script de Bootstrap Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path="Vista/VistaUsuario/Templates/signup.html">
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card card-custom">
+            <div class="card-header">
+                <h1 class="text-center">Registrarse</h1>
+            </div>
+            <div class="card-body">
+                {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+                {% endif %}
+                
+                <form action="/signup/" method="POST">
+                    {% csrf_token %}
+                    {{ formUser.as_p }}
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary btn-primary-custom" type="submit">Registrarse</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Script de Bootstrap Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}
+</file>
+
+<file path=".gitignore">
+# Entorno virtual
+venv/
+env/
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Django
+*.sqlite3
+*.log
+media/
+staticfiles/
+static_root/
+
+# Variables de entorno y secretos
+.env
+.env.*
+*.secret
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Distribución / empaquetado
+dist/
+build/
+*.egg-info/
+.eggs/
+
+# Cobertura de tests
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+</file>
+
+<file path="manage.py">
+#!/usr/bin/env python
+"""Django's command-line utility for administrative tasks."""
+import os
+import sys
+
+
+def main():
+    """Run administrative tasks."""
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Super.settings')
+    try:
+        from django.core.management import execute_from_command_line
+    except ImportError as exc:
+        raise ImportError(
+            "Couldn't import Django. Are you sure it's installed and "
+            "available on your PYTHONPATH environment variable? Did you "
+            "forget to activate a virtual environment?"
+        ) from exc
+    execute_from_command_line(sys.argv)
+
+
+if __name__ == '__main__':
+    main()
+</file>
+
+<file path="README_pruebas_integracion.md">
+# Pruebas de Integración — ProyectoSoftwareFinal
+
+## ¿Qué son las pruebas de integración?
+
+Las pruebas de integración verifican que **múltiples componentes del sistema funcionan correctamente juntos**. A diferencia de las pruebas unitarias (que prueban una sola pieza en aislamiento), las pruebas de integración simulan flujos reales de usuario de principio a fin:
+
+```
+Petición HTTP → URL → Controlador (vista) → Formulario → Modelo → Base de datos → Respuesta HTTP
+```
+
+**Diferencias clave frente a las pruebas unitarias:**
+
+| Aspecto | Pruebas Unitarias | Pruebas de Integración |
+|---------|-------------------|----------------------|
+| Alcance | Un componente aislado | Múltiples componentes juntos |
+| Mocks | Sí (para aislar dependencias) | No (todo es real) |
+| BD | En memoria, datos mínimos | En memoria, flujos completos |
+| Objetivo | Verificar lógica interna | Verificar flujos de usuario |
+| Velocidad | Muy rápidas | Más lentas (hacen más operaciones) |
+
+---
+
+## Archivo de pruebas
+
+```
+Controlador/
+    integration_tests.py    ← todas las pruebas de integración
+```
+
+---
+
+## Explicación detallada por clase y test
+
+---
+
+### `MedicamentoCRUDIntegrationTest`
+
+Cubre el ciclo completo de vida de un medicamento, pasando por las vistas reales en cada paso.
+
+#### `test_ciclo_completo_medicamento`
+
+Simula a un usuario que registra un medicamento, lo ve en la lista, lo edita y luego lo elimina.
+
+**Pasos del flujo:**
+
+1. `POST /registrar/` con datos válidos → debe redirigir a `/lista/`
+2. Verificar que el medicamento existe en la base de datos (`assertTrue`)
+3. `GET /lista/` → el medicamento debe aparecer en el contexto `medicamentos`
+4. `POST /editar/<id>/` con nuevos datos → debe redirigir a `/lista/`
+5. Verificar con `refresh_from_db()` que los cambios (nombre y componentes) se guardaron en BD
+6. `POST /eliminar/<id>/` → debe redirigir a `/lista/`
+7. Verificar que el medicamento ya no existe en BD (`assertFalse`) ni en el contexto de la lista
+
+#### `test_registrar_medicamento_invalido_no_persiste`
+
+Verifica que el sistema rechaza datos inválidos sin dejar rastro en la base de datos.
+
+**Pasos del flujo:**
+
+1. Contar los medicamentos existentes antes del POST (`count_antes`)
+2. `POST /registrar/` con campos vacíos (formulario inválido — sin nombre ni laboratorio)
+3. Verificar que `Medicamento.objects.count()` es igual a `count_antes` (nada se creó)
+
+---
+
+### `LaboratorioCRUDIntegrationTest`
+
+Cubre la creación, modificación y el historial de un laboratorio.
+
+#### `test_ciclo_completo_laboratorio`
+
+Simula a un usuario que crea un laboratorio y luego modifica sus datos.
+
+**Pasos del flujo:**
+
+1. `POST /crear_labs/` con nombre y dirección → debe redirigir a `/labs/`
+2. Verificar que el laboratorio existe en BD (`assertTrue`)
+3. `GET /labs/` → el laboratorio debe aparecer en el contexto `laboratorio`
+4. `POST /modificar_labs/<id>/` con nuevos datos → debe redirigir a `/labs/`
+5. Verificar con `refresh_from_db()` que nombre y dirección se actualizaron en BD
+
+#### `test_historial_refleja_medicamentos_y_farmacias`
+
+Verifica que el historial de un laboratorio muestra correctamente todas sus entidades asociadas, cruzando tres modelos distintos.
+
+**Pasos del flujo:**
+
+1. Crear laboratorio, medicamento (ForeignKey al laboratorio) y farmacia (ManyToMany al laboratorio) directamente en BD
+2. `GET /ver_historial/<id>/` → verificar que el contexto contiene el medicamento en `medicamentos` y la farmacia en `farmacias`
+
+> Este test cruza tres modelos (`Laboratorios`, `Medicamento`, `Farmacia`) y verifica que la vista los une correctamente usando los filtros ORM.
+
+#### `test_historial_laboratorio_sin_asociaciones`
+
+Verifica el caso límite de un laboratorio recién creado sin ninguna entidad relacionada.
+
+**Pasos del flujo:**
+
+1. Crear laboratorio vacío en BD (sin medicamentos ni farmacias)
+2. `GET /ver_historial/<id>/` → verificar que `medicamentos.count() == 0` y `farmacias.count() == 0`
+
+---
+
+### `FarmaciaCRUDIntegrationTest`
+
+Cubre el registro, modificación y los distintos órdenes de la lista, incluyendo la relación ManyToMany con laboratorios.
+
+#### `test_ciclo_completo_farmacia`
+
+Simula registrar una farmacia con un laboratorio y luego editarla para agregar un segundo laboratorio.
+
+**Pasos del flujo:**
+
+1. `POST /registro_farm/` con nombre, dirección y `laboratorios=[lab1]` → redirige a lista
+2. Verificar en BD que la farmacia existe y que `farmacia.laboratorios.all()` contiene `lab1`
+3. `GET /lista_farm/` → la farmacia aparece en el contexto `farmacias`
+4. `POST /farmacias/modificar/<id>/` con `laboratorios=[lab1, lab2]` → redirige a lista
+5. Verificar que `farmacia.laboratorios.count() == 2` y que `lab2` fue agregado correctamente
+
+#### `test_lista_farmacias_tres_ordenes`
+
+Verifica que el parámetro `?orden=` produce resultados distintos y correctos para los tres modos disponibles.
+
+**Pasos del flujo:**
+
+1. Crear 3 farmacias con nombres fuera de orden alfabético ("Zebra", "Alfa", "Medio")
+2. `GET /lista_farm/?orden=alfabetico` → la primera debe ser "Alfa Farmacia" y la última "Zebra Farmacia"
+3. `GET /lista_farm/?orden=reciente` → la primera debe ser la de mayor `id` (más reciente)
+4. `GET /lista_farm/` sin parámetro → debe retornar las 3 farmacias (sin orden exigido)
+
+---
+
+### `RelacionesEntidadesIntegrationTest`
+
+Verifica que las relaciones entre los tres modelos principales se comportan correctamente de extremo a extremo.
+
+#### `test_eliminacion_laboratorio_elimina_medicamentos_en_cascada`
+
+Verifica que `on_delete=CASCADE` funciona correctamente y que la vista refleja el estado actualizado de la BD.
+
+**Pasos del flujo:**
+
+1. Crear laboratorio y 2 medicamentos asociados a él
+2. `GET /lista/` → verificar que ambos medicamentos aparecen en el contexto
+3. Eliminar el laboratorio con `lab.delete()` (dispara el CASCADE en BD)
+4. Verificar que los medicamentos ya no existen en BD (`assertFalse` para cada uno)
+5. `GET /lista/` → verificar que el contexto `medicamentos` tiene `count() == 0`
+
+> No existe una vista de eliminación de laboratorios en el proyecto, por eso la eliminación se hace directamente por ORM. Lo que se integra aquí es el comportamiento de la BD + la vista de medicamentos.
+
+#### `test_farmacia_visible_en_historial_de_sus_laboratorios`
+
+Verifica que una relación ManyToMany se refleja correctamente en ambas direcciones del historial.
+
+**Pasos del flujo:**
+
+1. Crear 2 laboratorios y 1 farmacia, luego asociarla a ambos con `farmacia.laboratorios.add(lab1, lab2)`
+2. `GET /ver_historial/<lab1.pk>/` → la farmacia debe estar en el contexto `farmacias`
+3. `GET /ver_historial/<lab2.pk>/` → la farmacia también debe estar en el contexto `farmacias`
+
+#### `test_lista_farmacias_incluye_contexto_completo`
+
+Verifica que la vista de lista entrega todos los datos auxiliares que el template necesita para mostrar filtros.
+
+**Pasos del flujo:**
+
+1. Crear laboratorio, medicamento asociado y farmacia asociada al laboratorio
+2. `GET /lista_farm/` → verificar que el contexto contiene `farmacias`, `laboratorios` y `medicamentos`
+
+---
+
+### `AutenticacionIntegrationTest`
+
+Verifica el flujo completo de autenticación sin ningún mock — todas las llamadas pasan por Django Auth real.
+
+#### `test_flujo_signin_perfiles_signout`
+
+Simula el ciclo completo de una sesión de usuario desde login hasta logout.
+
+**Pasos del flujo:**
+
+1. `POST /signin/` con credenciales correctas → redirige a `/perfiles/`
+2. `GET /perfiles/` → el usuario autenticado aparece en el contexto `users`, `is_authenticated == True`
+3. `GET /logout/` → redirige a `/`
+4. `GET /` → verificar que `request.user.is_authenticated == False` (sesión destruida)
+
+#### `test_credenciales_invalidas_no_autentican`
+
+Verifica que una contraseña incorrecta no abre sesión ni redirige a páginas internas.
+
+**Pasos del flujo:**
+
+1. `POST /signin/` con contraseña incorrecta → retorna 200 (no redirige a `/perfiles/`)
+2. La respuesta contiene el texto `"Usuario o contraseña incorrectas"`
+3. `request.user.is_authenticated == False`
+
+#### `test_multiples_usuarios_visibles_en_perfiles`
+
+Verifica que la vista de perfiles refleja todos los usuarios del sistema en tiempo real.
+
+**Pasos del flujo:**
+
+1. El `setUp` crea 1 usuario; este test crea 2 adicionales (total: 3 en BD)
+2. `GET /perfiles/` → `response.context['users'].count() == 3`
+
+---
+
+## Resumen de cobertura
+
+| Clase | Tests |
+|-------|-------|
+| `MedicamentoCRUDIntegrationTest` | 2 |
+| `LaboratorioCRUDIntegrationTest` | 3 |
+| `FarmaciaCRUDIntegrationTest` | 2 |
+| `RelacionesEntidadesIntegrationTest` | 3 |
+| `AutenticacionIntegrationTest` | 3 |
+| **Total** | **13** |
+
+---
+
+## Paso a paso para ejecutar las pruebas
+
+### Prerrequisitos
+
+Tener el entorno virtual creado e instaladas las dependencias. Si aún no lo hiciste:
+
+```bash
+python -m venv venv
+pip install -r requirements.txt
+```
+
+### Paso 1 — Posicionarse en la raíz del proyecto
+
+```bash
+cd /ruta/a/ProyectoSoftwareFinal
+```
+
+### Paso 2 — Activar el entorno virtual
+
+```bash
+# Linux/macOS
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+```
+
+Sabrás que está activo porque el prompt muestra `(venv)`.
+
+### Paso 3 — Ejecutar las pruebas
+
+**Solo pruebas de integración:**
+
+```bash
+python manage.py test Controlador.integration_tests --verbosity=2
+```
+
+**Una clase específica:**
+
+```bash
+python manage.py test Controlador.integration_tests.MedicamentoCRUDIntegrationTest --verbosity=2
+python manage.py test Controlador.integration_tests.AutenticacionIntegrationTest --verbosity=2
+```
+
+**Un test individual:**
+
+```bash
+python manage.py test Controlador.integration_tests.LaboratorioCRUDIntegrationTest.test_historial_refleja_medicamentos_y_farmacias
+python manage.py test Controlador.integration_tests.RelacionesEntidadesIntegrationTest.test_eliminacion_laboratorio_elimina_medicamentos_en_cascada
+```
+
+**Suite completa — unitarias + integración (103 tests):**
+
+```bash
+python manage.py test \
+  Modelo.ModeloLaboratorio.Laboratorios.tests \
+  Modelo.ModeloMedicamentos.Medicamentos.tests \
+  Modelo.ModeloFarmacia.Farmacias.tests \
+  Modelo.ModeloUsuario.Perfiles.tests \
+  Controlador.tests \
+  Controlador.integration_tests \
+  --verbosity=2
+```
+
+### Paso 4 — Interpretar el resultado
+
+```
+Ran 13 tests in 1.570s
+
+OK
+```
+
+- `OK` — todos los tests pasaron.
+- `FAILED (failures=N)` — N tests fallaron; se muestra el nombre del test, el traceback y la aserción que no se cumplió.
+- `ERROR` — ocurrió una excepción inesperada durante la ejecución del test.
+
+---
+
+## Notas técnicas
+
+- **Sin mocks:** todas las llamadas son reales; no se reemplaza ningún componente por un objeto simulado. Si hay un bug en el controlador, el modelo o la BD, el test lo detectará.
+- **Base de datos en memoria:** se usa una BD SQLite en memoria que se crea limpia antes de cada test y se destruye al terminar. No afecta `db.sqlite3`.
+- **`assertRedirects`:** verifica que la vista retorna un código 302 y que la URL de destino es la correcta, confirmando que el flujo se completó exitosamente.
+- **`refresh_from_db()`:** recarga el objeto desde la BD para confirmar que los cambios persistieron realmente, no solo en la memoria de Python.
+- **`response.wsgi_request.user`:** permite inspeccionar el estado de autenticación del usuario después de una petición, sin necesidad de hacer otra solicitud.
+- **`response.context`:** contiene el diccionario de variables que el controlador pasó al template, lo que permite verificar qué datos recibe la vista sin parsear HTML.
+</file>
+
+<file path="README_pruebas_unitarias.md">
+# Pruebas Unitarias — ProyectoSoftwareFinal
+
+## ¿Qué son las pruebas unitarias?
+
+Las pruebas unitarias verifican el comportamiento de una **unidad mínima de código** (un modelo, un formulario o una vista) de forma **aislada**, sin depender de sistemas externos ni de otras partes de la aplicación.
+
+En este proyecto se usan las herramientas integradas de Django:
+
+- `django.test.TestCase` — clase base que levanta una base de datos en memoria para cada prueba y la destruye al terminar. Nunca toca `db.sqlite3`.
+- `self.client` — cliente HTTP de pruebas que simula peticiones GET/POST sin necesitar un servidor real.
+- `unittest.mock.patch` — reemplaza temporalmente una función real por un objeto controlado para aislar comportamientos.
+
+---
+
+## Estructura de los archivos de prueba
+
+```
+Modelo/
+    ModeloLaboratorio/Laboratorios/tests.py   ← modelos + formularios de Laboratorio
+    ModeloMedicamentos/Medicamentos/tests.py  ← modelos + formularios de Medicamento
+    ModeloFarmacia/Farmacias/tests.py         ← modelos + formularios de Farmacia
+    ModeloUsuario/Perfiles/tests.py           ← modelo de Usuario (auth de Django)
+Controlador/
+    tests.py                                  ← todas las vistas/controladores
+```
+
+---
+
+## Capa 1 — Pruebas de Modelos
+
+Verifican que los modelos se crean correctamente, sus relaciones funcionan y sus métodos retornan los valores esperados.
+
+### `LaboratorioModelTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_crear_laboratorio` | Se crea con `nombre` y `direccion` correctos |
+| `test_str_laboratorio` | `__str__` retorna el nombre |
+| `test_nombre_max_length` | `max_length` del campo `nombre` es 100 |
+| `test_direccion_max_length` | `max_length` del campo `direccion` es 100 |
+| `test_laboratorio_persiste_en_bd` | El objeto existe en la BD tras ser creado |
+| `test_crear_multiples_laboratorios` | Múltiples laboratorios coexisten sin conflicto |
+
+### `MedicamentoModelTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_crear_medicamento` | Se crea con todos sus campos correctamente |
+| `test_str_medicamento` | `__str__` retorna `"NombreComercial (NombreLab)"` |
+| `test_cascade_delete` | Al borrar el laboratorio, el medicamento se elimina (`on_delete=CASCADE`) |
+| `test_ordenamiento_default` | `Medicamento.objects.all()` viene ordenado por `nombre_comercial` |
+| `test_nombre_comercial_max_length` | `max_length` del campo es 100 |
+| `test_medicamento_persiste_en_bd` | El objeto existe en la BD tras ser creado |
+| `test_laboratorio_fk` | El campo `laboratorio` es una `ForeignKey` al modelo `Laboratorios` |
+
+### `FarmaciaModelTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_crear_farmacia` | Se crea con `nombre` y `direccion` correctos |
+| `test_str_farmacia` | `__str__` retorna el nombre |
+| `test_relacion_many_to_many_un_laboratorio` | Puede asociarse con un laboratorio |
+| `test_relacion_many_to_many_multiples_laboratorios` | Puede asociarse con varios laboratorios |
+| `test_farmacia_sin_laboratorios` | Puede existir sin laboratorios asignados |
+| `test_relacion_inversa_laboratorio_farmacias` | Desde un laboratorio se accede a sus farmacias via `related_name='farmacias'` |
+| `test_nombre_max_length` | `max_length` del campo es 100 |
+| `test_farmacia_persiste_en_bd` | El objeto existe en la BD tras ser creado |
+
+### `UsuarioModelTest`
+
+Usa el modelo `User` estándar de Django (`django.contrib.auth`).
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_crear_usuario` | Se crea con `username` correcto y contraseña válida |
+| `test_contrasena_hasheada` | La contraseña se almacena hasheada, no en texto plano |
+| `test_usuario_persiste_en_bd` | El objeto existe en la BD tras ser creado |
+| `test_username_unico` | Crear dos usuarios con el mismo `username` lanza `IntegrityError` |
+| `test_str_usuario` | `__str__` retorna el `username` |
+| `test_usuario_activo_por_defecto` | `is_active=True` tras `create_user()` |
+| `test_usuario_no_es_staff_por_defecto` | `is_staff=False` tras `create_user()` |
+
+---
+
+## Capa 2 — Pruebas de Formularios
+
+Verifican la lógica de validación de los `ModelForm`. Se prueban tanto datos válidos como inválidos, y la persistencia en base de datos.
+
+### `NuevoLaboratorioFormTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_form_valido` | Válido con nombre y dirección |
+| `test_form_nombre_vacio` | Inválido si `nombre` está vacío |
+| `test_form_direccion_vacia` | Inválido si `direccion` está vacía |
+| `test_form_ambos_campos_vacios` | Inválido si ambos campos están vacíos (2 errores) |
+| `test_form_nombre_excede_longitud` | Inválido si `nombre` supera 200 caracteres |
+| `test_form_direccion_excede_longitud` | Inválido si `direccion` supera 200 caracteres |
+| `test_form_guarda_instancia` | `form.save()` crea un registro en la BD |
+| `test_form_actualiza_instancia` | `form.save(instance=obj)` actualiza el registro existente |
+
+### `MedicamentoFormTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_form_valido` | Válido con todos los campos completos |
+| `test_form_sin_nombre_comercial` | Inválido si falta `nombre_comercial` |
+| `test_form_sin_nombre_farmacologico` | Inválido si falta `nombre_farmacologico` |
+| `test_form_sin_componentes` | Inválido si falta `componentes` |
+| `test_form_sin_laboratorio` | Inválido si no se selecciona laboratorio |
+| `test_form_laboratorio_inexistente` | Inválido si el laboratorio no existe en la BD |
+| `test_form_nombre_comercial_max_length` | Inválido si `nombre_comercial` supera 100 caracteres |
+| `test_form_guarda_instancia` | `form.save()` crea un registro en la BD |
+| `test_form_actualiza_instancia` | `form.save(instance=obj)` actualiza el registro existente |
+
+### `FarmaciaFormTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_form_valido_con_laboratorio` | Válido con nombre, dirección y laboratorio |
+| `test_form_valido_sin_laboratorios` | El campo `laboratorios` **es requerido** (Django lo exige aunque sea M2M) |
+| `test_form_valido_multiples_laboratorios` | Válido con múltiples laboratorios seleccionados |
+| `test_form_sin_nombre` | Inválido si falta `nombre` |
+| `test_form_sin_direccion` | Inválido si falta `direccion` |
+| `test_form_nombre_max_length` | Inválido si `nombre` supera 100 caracteres |
+| `test_form_laboratorio_inexistente` | Inválido si se referencia un laboratorio inexistente |
+| `test_form_guarda_instancia` | `form.save(commit=False)` + `save()` + `save_m2m()` crea farmacia con laboratorios |
+| `test_form_actualiza_instancia` | `form.save(instance=obj)` actualiza la farmacia existente |
+
+---
+
+## Capa 3 — Pruebas de Controladores (Vistas)
+
+Verifican el comportamiento HTTP de cada vista: códigos de respuesta, contextos entregados al template, redirecciones y efectos en la base de datos. Se usa `self.client` para simular peticiones.
+
+### `PerfilControllerTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_home_get` | `GET /` retorna 200 |
+| `test_signup_get` | `GET /signup/` retorna 200 con `formUser` en contexto |
+| `test_signup_post_contrasenas_no_coinciden` | Muestra el error `"contraseñas no coinciden"` |
+| `test_signup_post_exitoso` | Redirige a `/perfiles/` tras crear usuario _(usa mock)_ |
+| `test_signup_post_usuario_duplicado` | Muestra el error `"usuario ya existe"` _(usa mock)_ |
+| `test_perfiles_get` | `GET /perfiles/` retorna 200 con `users` en contexto |
+| `test_signin_get` | `GET /signin/` retorna 200 con `form` en contexto |
+| `test_signin_post_credenciales_validas` | Login exitoso redirige a `/perfiles/` |
+| `test_signin_post_credenciales_invalidas` | Muestra el error `"Usuario o contraseña incorrectas"` |
+| `test_signout` | `GET /logout/` cierra sesión y redirige a `/` |
+
+> **Nota sobre el mock en signup:** La vista llama a `User.objects.create_user()` con el parámetro `alergias=` que no existe en el modelo estándar de Django. Se usa `unittest.mock.patch` para aislar este comportamiento.
+
+### `MedicamentoControllerTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_lista_medicamentos_get` | `GET /lista/` retorna 200 con `medicamentos` en contexto |
+| `test_registrar_medicamento_get` | `GET /registrar/` retorna 200 con formulario vacío |
+| `test_registrar_medicamento_post_valido` | `POST` válido crea medicamento y redirige a `/lista/` |
+| `test_registrar_medicamento_post_invalido` | `POST` vacío retorna 200 con errores en el formulario |
+| `test_editar_medicamento_get` | `GET /editar/<id>/` retorna 200 con medicamento precargado |
+| `test_editar_medicamento_get_404` | `GET /editar/9999/` retorna 404 |
+| `test_editar_medicamento_post_valido` | `POST` válido actualiza el medicamento y redirige |
+| `test_eliminar_medicamento_get` | `GET /eliminar/<id>/` retorna 200 (pantalla de confirmación) |
+| `test_eliminar_medicamento_post` | `POST` elimina el medicamento de la BD y redirige |
+
+### `LaboratorioControllerTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_labs_get` | `GET /labs/` retorna 200 con `laboratorio` en contexto |
+| `test_crear_labs_get` | `GET /crear_labs/` retorna 200 con formulario vacío |
+| `test_crear_labs_post_valido` | `POST` válido crea laboratorio y redirige a `/labs/` |
+| `test_modificar_labs_get` | `GET /modificar_labs/<id>/` retorna 200 con formulario precargado |
+| `test_modificar_labs_get_404` | `GET /modificar_labs/9999/` retorna 404 |
+| `test_modificar_labs_post_valido` | `POST` válido actualiza laboratorio y redirige a `/labs/` |
+| `test_ver_historial` | `GET /ver_historial/<id>/` retorna 200 con `laboratorio`, `medicamentos` y `farmacias` |
+| `test_ver_historial_404` | `GET /ver_historial/9999/` retorna 404 |
+
+### `FarmaciaControllerTest`
+
+| Test | Qué verifica |
+|------|-------------|
+| `test_lista_farmacias_get` | `GET /lista_farm/` retorna 200 con `farmacias`, `laboratorios` y `medicamentos` |
+| `test_lista_farmacias_orden_alfabetico` | `?orden=alfabetico` ordena por `nombre` ascendente |
+| `test_lista_farmacias_orden_reciente` | `?orden=reciente` ordena por `-id` (más nuevo primero) |
+| `test_registrar_farmacia_get` | `GET /registro_farm/` retorna 200 con formulario vacío |
+| `test_registrar_farmacia_post_valido` | `POST` válido crea farmacia y redirige a la lista |
+| `test_registrar_farmacia_post_invalido` | `POST` vacío retorna 200 con errores en el formulario |
+| `test_modificar_farmacia_get` | `GET /farmacias/modificar/<id>/` retorna 200 con formulario precargado |
+| `test_modificar_farmacia_get_404` | `GET /farmacias/modificar/9999/` retorna 404 |
+| `test_modificar_farmacia_post_valido` | `POST` válido actualiza farmacia y redirige a la lista |
+
+---
+
+## Resumen de cobertura
+
+| Capa | Clases de prueba | Tests |
+|------|-----------------|-------|
+| Modelos | 4 | 28 |
+| Formularios | 3 | 26 |
+| Controladores | 4 | 36 |
+| **Total** | **11** | **90** |
+
+---
+
+## Cómo ejecutar las pruebas
+
+### 0. Primera vez — configurar el entorno
+
+El proyecto incluye un `requirements.txt`. Solo necesitas hacer esto una vez:
+
+```bash
+# Crear el entorno virtual dentro del proyecto
+python -m venv venv
+
+# Activarlo (Linux/macOS)
+source venv/bin/activate
+
+# Activarlo (Windows)
+venv\Scripts\activate
+
+# Instalar dependencias
+pip install -r requirements.txt
+```
+
+### 1. Activar el entorno virtual
+
+Desde la raíz del proyecto, antes de correr cualquier test:
+
+```bash
+# Linux/macOS
+source venv/bin/activate
+
+# Windows
+venv\Scripts\activate
+```
+
+Este paso se necesita una sola vez por sesión de terminal.
+
+### 2. Ejecutar todas las pruebas
+
+```bash
+python manage.py test \
+  Modelo.ModeloLaboratorio.Laboratorios.tests \
+  Modelo.ModeloMedicamentos.Medicamentos.tests \
+  Modelo.ModeloFarmacia.Farmacias.tests \
+  Modelo.ModeloUsuario.Perfiles.tests \
+  Controlador.tests \
+  --verbosity=2
+```
+
+### 3. Ejecutar una capa específica
+
+```bash
+# Solo pruebas de Medicamentos (modelos + formularios)
+python manage.py test Modelo.ModeloMedicamentos.Medicamentos.tests --verbosity=2
+
+# Solo pruebas de controladores
+python manage.py test Controlador.tests --verbosity=2
+```
+
+### 4. Ejecutar una clase específica
+
+```bash
+python manage.py test Controlador.tests.MedicamentoControllerTest --verbosity=2
+python manage.py test Modelo.ModeloFarmacia.Farmacias.tests.FarmaciaFormTest --verbosity=2
+```
+
+### 5. Ejecutar un test individual
+
+```bash
+python manage.py test Controlador.tests.FarmaciaControllerTest.test_lista_farmacias_orden_alfabetico
+python manage.py test Modelo.ModeloMedicamentos.Medicamentos.tests.MedicamentoModelTest.test_cascade_delete
+```
+
+### Resultado esperado
+
+```
+Ran 90 tests in X.XXXs
+
+OK
+```
+
+---
+
+## Notas técnicas
+
+- **Base de datos de prueba:** Django crea una BD en memoria para cada ejecución. No se modifica `db.sqlite3` en ningún momento.
+- **Aislamiento:** cada método `test_*` parte de un estado limpio. `setUp()` se ejecuta antes de cada test y sus datos se descartan al terminar.
+- **Corrección aplicada:** `Super/settings.py` fue corregido para que Django encuentre los templates ubicados en `Vista/*/Templates/`. La configuración original apuntaba a una carpeta inexistente.
+</file>
+
+<file path="requirements.txt">
+asgiref==3.11.1
+Django==4.2
+sqlparse==0.5.5
+</file>
+
+<file path="Modelo/ModeloFarmacia/Farmacias/tests.py">
+from django.test import TestCase
+from .models import Farmacia
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+
+
+class FarmaciaModelTest(TestCase):
+
+    def setUp(self):
+        self.laboratorio1 = Laboratorios.objects.create(
+            nombre='Novartis',
+            direccion='Av. Principal 10'
+        )
+        self.laboratorio2 = Laboratorios.objects.create(
+            nombre='Sanofi',
+            direccion='Calle 50'
+        )
+        self.farmacia = Farmacia.objects.create(
+            nombre='Farmacia Central',
+            direccion='Centro Comercial 1'
+        )
+
+    def test_crear_farmacia(self):
+        """Se crea una farmacia con nombre y dirección correctos."""
+        self.assertEqual(self.farmacia.nombre, 'Farmacia Central')
+        self.assertEqual(self.farmacia.direccion, 'Centro Comercial 1')
+
+    def test_str_farmacia(self):
+        """__str__ retorna el nombre de la farmacia."""
+        self.assertEqual(str(self.farmacia), 'Farmacia Central')
+
+    def test_relacion_many_to_many_un_laboratorio(self):
+        """Una farmacia puede asociarse con un laboratorio."""
+        self.farmacia.laboratorios.add(self.laboratorio1)
+        self.assertIn(self.laboratorio1, self.farmacia.laboratorios.all())
+
+    def test_relacion_many_to_many_multiples_laboratorios(self):
+        """Una farmacia puede asociarse con múltiples laboratorios."""
+        self.farmacia.laboratorios.add(self.laboratorio1, self.laboratorio2)
+        self.assertEqual(self.farmacia.laboratorios.count(), 2)
+
+    def test_farmacia_sin_laboratorios(self):
+        """Una farmacia puede existir sin laboratorios asignados."""
+        self.assertEqual(self.farmacia.laboratorios.count(), 0)
+
+    def test_relacion_inversa_laboratorio_farmacias(self):
+        """Desde un laboratorio se puede acceder a sus farmacias (related_name)."""
+        self.farmacia.laboratorios.add(self.laboratorio1)
+        self.assertIn(self.farmacia, self.laboratorio1.farmacias.all())
+
+    def test_nombre_max_length(self):
+        """El campo nombre tiene un max_length de 100 caracteres."""
+        max_length = Farmacia._meta.get_field('nombre').max_length
+        self.assertEqual(max_length, 100)
+
+    def test_farmacia_persiste_en_bd(self):
+        """La farmacia creada en setUp se encuentra en la base de datos."""
+        farmacia_db = Farmacia.objects.get(pk=self.farmacia.pk)
+        self.assertEqual(farmacia_db.nombre, 'Farmacia Central')
+
+
+# ---------------------------------------------------------------------------
+# FarmaciaForm
+# ---------------------------------------------------------------------------
+
+from .forms import FarmaciaForm
+
+
+class FarmaciaFormTest(TestCase):
+
+    def setUp(self):
+        self.lab1 = Laboratorios.objects.create(nombre='Lab A', direccion='Dir A')
+        self.lab2 = Laboratorios.objects.create(nombre='Lab B', direccion='Dir B')
+
+    def _datos_validos(self, **kwargs):
+        base = {
+            'nombre': 'Farmacia Test',
+            'direccion': 'Calle 10',
+            'laboratorios': [self.lab1.pk],
+        }
+        base.update(kwargs)
+        return base
+
+    def test_form_valido_con_laboratorio(self):
+        """Formulario válido con nombre, dirección y al menos un laboratorio."""
+        form = FarmaciaForm(data=self._datos_validos())
+        self.assertTrue(form.is_valid())
+
+    def test_form_valido_sin_laboratorios(self):
+        """FarmaciaForm requiere al menos un laboratorio (campo requerido por Django)."""
+        form = FarmaciaForm(data={'nombre': 'Farmacia Sin Lab', 'direccion': 'Calle 1'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('laboratorios', form.errors)
+
+    def test_form_valido_multiples_laboratorios(self):
+        """Formulario válido con múltiples laboratorios seleccionados."""
+        form = FarmaciaForm(data=self._datos_validos(
+            laboratorios=[self.lab1.pk, self.lab2.pk]
+        ))
+        self.assertTrue(form.is_valid())
+
+    def test_form_sin_nombre(self):
+        """Formulario inválido si falta el nombre."""
+        form = FarmaciaForm(data=self._datos_validos(nombre=''))
+        self.assertFalse(form.is_valid())
+        self.assertIn('nombre', form.errors)
+
+    def test_form_sin_direccion(self):
+        """Formulario inválido si falta la dirección."""
+        form = FarmaciaForm(data=self._datos_validos(direccion=''))
+        self.assertFalse(form.is_valid())
+        self.assertIn('direccion', form.errors)
+
+    def test_form_nombre_max_length(self):
+        """Formulario inválido si nombre supera 100 caracteres."""
+        form = FarmaciaForm(data=self._datos_validos(nombre='X' * 101))
+        self.assertFalse(form.is_valid())
+        self.assertIn('nombre', form.errors)
+
+    def test_form_laboratorio_inexistente(self):
+        """Formulario inválido si se referencia un laboratorio que no existe."""
+        form = FarmaciaForm(data=self._datos_validos(laboratorios=[9999]))
+        self.assertFalse(form.is_valid())
+        self.assertIn('laboratorios', form.errors)
+
+    def test_form_guarda_instancia(self):
+        """form.save() + save_m2m() crea farmacia con sus laboratorios."""
+        form = FarmaciaForm(data=self._datos_validos())
+        self.assertTrue(form.is_valid())
+        farmacia = form.save(commit=False)
+        farmacia.save()
+        form.save_m2m()
+        self.assertTrue(Farmacia.objects.filter(nombre='Farmacia Test').exists())
+        self.assertIn(self.lab1, farmacia.laboratorios.all())
+
+    def test_form_actualiza_instancia(self):
+        """form.save() con instance actualiza la farmacia existente."""
+        farmacia = Farmacia.objects.create(nombre='Vieja', direccion='Dir vieja')
+        form = FarmaciaForm(
+            data=self._datos_validos(nombre='Nueva', direccion='Dir nueva'),
+            instance=farmacia
+        )
+        self.assertTrue(form.is_valid())
+        form.save()
+        farmacia.refresh_from_db()
+        self.assertEqual(farmacia.nombre, 'Nueva')
+</file>
+
+<file path="Modelo/ModeloLaboratorio/Laboratorios/tests.py">
+from django.test import TestCase
+from django.core.exceptions import ValidationError
+from .models import Laboratorios
+
+
+class LaboratorioModelTest(TestCase):
+
+    def setUp(self):
+        self.laboratorio = Laboratorios.objects.create(
+            nombre='Bayer',
+            direccion='Calle 123'
+        )
+
+    def test_crear_laboratorio(self):
+        """Se crea un laboratorio con nombre y dirección correctos."""
+        self.assertEqual(self.laboratorio.nombre, 'Bayer')
+        self.assertEqual(self.laboratorio.direccion, 'Calle 123')
+
+    def test_str_laboratorio(self):
+        """__str__ retorna el nombre del laboratorio."""
+        self.assertEqual(str(self.laboratorio), 'Bayer')
+
+    def test_nombre_max_length(self):
+        """El campo nombre tiene un max_length de 100 caracteres."""
+        max_length = Laboratorios._meta.get_field('nombre').max_length
+        self.assertEqual(max_length, 100)
+
+    def test_direccion_max_length(self):
+        """El campo direccion tiene un max_length de 100 caracteres."""
+        max_length = Laboratorios._meta.get_field('direccion').max_length
+        self.assertEqual(max_length, 100)
+
+    def test_laboratorio_persiste_en_bd(self):
+        """El laboratorio creado en setUp se encuentra en la base de datos."""
+        laboratorio_db = Laboratorios.objects.get(pk=self.laboratorio.pk)
+        self.assertEqual(laboratorio_db.nombre, 'Bayer')
+
+    def test_crear_multiples_laboratorios(self):
+        """Se pueden crear múltiples laboratorios sin conflicto."""
+        Laboratorios.objects.create(nombre='Pfizer', direccion='Av. 456')
+        Laboratorios.objects.create(nombre='Roche', direccion='Carrera 789')
+        self.assertEqual(Laboratorios.objects.count(), 3)
+
+
+# ---------------------------------------------------------------------------
+# NuevoLaboratorio form
+# ---------------------------------------------------------------------------
+
+from .forms import NuevoLaboratorio
+
+
+class NuevoLaboratorioFormTest(TestCase):
+
+    def test_form_valido(self):
+        """Formulario válido con nombre y dirección correctos."""
+        form = NuevoLaboratorio(data={'nombre': 'Genfar', 'direccion': 'Calle 10'})
+        self.assertTrue(form.is_valid())
+
+    def test_form_nombre_vacio(self):
+        """Formulario inválido si el nombre está vacío."""
+        form = NuevoLaboratorio(data={'nombre': '', 'direccion': 'Calle 10'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('nombre', form.errors)
+
+    def test_form_direccion_vacia(self):
+        """Formulario inválido si la dirección está vacía."""
+        form = NuevoLaboratorio(data={'nombre': 'Genfar', 'direccion': ''})
+        self.assertFalse(form.is_valid())
+        self.assertIn('direccion', form.errors)
+
+    def test_form_ambos_campos_vacios(self):
+        """Formulario inválido si nombre y dirección están vacíos."""
+        form = NuevoLaboratorio(data={'nombre': '', 'direccion': ''})
+        self.assertFalse(form.is_valid())
+        self.assertEqual(len(form.errors), 2)
+
+    def test_form_nombre_excede_longitud(self):
+        """Formulario inválido si el nombre supera 200 caracteres."""
+        form = NuevoLaboratorio(data={'nombre': 'A' * 201, 'direccion': 'Calle 10'})
+        self.assertFalse(form.is_valid())
+        self.assertIn('nombre', form.errors)
+
+    def test_form_direccion_excede_longitud(self):
+        """Formulario inválido si la dirección supera 200 caracteres."""
+        form = NuevoLaboratorio(data={'nombre': 'Genfar', 'direccion': 'B' * 201})
+        self.assertFalse(form.is_valid())
+        self.assertIn('direccion', form.errors)
+
+    def test_form_guarda_instancia(self):
+        """form.save() crea un registro en la base de datos."""
+        form = NuevoLaboratorio(data={'nombre': 'Roche', 'direccion': 'Av. 1'})
+        self.assertTrue(form.is_valid())
+        lab = form.save()
+        self.assertEqual(lab.nombre, 'Roche')
+        self.assertTrue(Laboratorios.objects.filter(nombre='Roche').exists())
+
+    def test_form_actualiza_instancia(self):
+        """form.save() con instance actualiza el registro existente."""
+        lab = Laboratorios.objects.create(nombre='Viejo Nombre', direccion='Calle 1')
+        form = NuevoLaboratorio(
+            data={'nombre': 'Nuevo Nombre', 'direccion': 'Calle 2'},
+            instance=lab
+        )
+        self.assertTrue(form.is_valid())
+        form.save()
+        lab.refresh_from_db()
+        self.assertEqual(lab.nombre, 'Nuevo Nombre')
+</file>
+
+<file path="Modelo/ModeloMedicamentos/Medicamentos/tests.py">
+from django.test import TestCase
+from .models import Medicamento
+from Modelo.ModeloLaboratorio.Laboratorios.models import Laboratorios
+
+
+class MedicamentoModelTest(TestCase):
+
+    def setUp(self):
+        self.laboratorio = Laboratorios.objects.create(
+            nombre='Genfar',
+            direccion='Zona Industrial 1'
+        )
+        self.medicamento = Medicamento.objects.create(
+            nombre_comercial='Aspirina',
+            nombre_farmacologico='Acido Acetilsalicilico',
+            componentes='Acido acetilsalicilico 500mg',
+            laboratorio=self.laboratorio
+        )
+
+    def test_crear_medicamento(self):
+        """Se crea un medicamento con todos sus campos correctamente."""
+        self.assertEqual(self.medicamento.nombre_comercial, 'Aspirina')
+        self.assertEqual(self.medicamento.nombre_farmacologico, 'Acido Acetilsalicilico')
+        self.assertEqual(self.medicamento.componentes, 'Acido acetilsalicilico 500mg')
+        self.assertEqual(self.medicamento.laboratorio, self.laboratorio)
+
+    def test_str_medicamento(self):
+        """__str__ retorna 'NombreComercial (NombreLaboratorio)'."""
+        esperado = 'Aspirina (Genfar)'
+        self.assertEqual(str(self.medicamento), esperado)
+
+    def test_cascade_delete(self):
+        """Al eliminar el laboratorio, el medicamento asociado también se elimina."""
+        self.laboratorio.delete()
+        self.assertEqual(Medicamento.objects.filter(pk=self.medicamento.pk).count(), 0)
+
+    def test_ordenamiento_default(self):
+        """Los medicamentos se ordenan por nombre_comercial por defecto."""
+        Medicamento.objects.create(
+            nombre_comercial='Amoxicilina',
+            nombre_farmacologico='Amoxicilina',
+            componentes='Amoxicilina 500mg',
+            laboratorio=self.laboratorio
+        )
+        medicamentos = list(Medicamento.objects.all())
+        self.assertEqual(medicamentos[0].nombre_comercial, 'Amoxicilina')
+        self.assertEqual(medicamentos[1].nombre_comercial, 'Aspirina')
+
+    def test_nombre_comercial_max_length(self):
+        """El campo nombre_comercial tiene un max_length de 100 caracteres."""
+        max_length = Medicamento._meta.get_field('nombre_comercial').max_length
+        self.assertEqual(max_length, 100)
+
+    def test_medicamento_persiste_en_bd(self):
+        """El medicamento creado en setUp se encuentra en la base de datos."""
+        medicamento_db = Medicamento.objects.get(pk=self.medicamento.pk)
+        self.assertEqual(medicamento_db.nombre_comercial, 'Aspirina')
+
+    def test_laboratorio_fk(self):
+        """El campo laboratorio es una ForeignKey al modelo Laboratorios."""
+        field = Medicamento._meta.get_field('laboratorio')
+        self.assertEqual(field.related_model, Laboratorios)
+
+
+# ---------------------------------------------------------------------------
+# MedicamentoForm
+# ---------------------------------------------------------------------------
+
+from .forms import MedicamentoForm
+
+
+class MedicamentoFormTest(TestCase):
+
+    def setUp(self):
+        self.laboratorio = Laboratorios.objects.create(
+            nombre='Lab Form',
+            direccion='Calle Test'
+        )
+
+    def _datos_validos(self, **kwargs):
+        base = {
+            'nombre_comercial': 'Paracetamol',
+            'nombre_farmacologico': 'Acetaminofen',
+            'componentes': 'Acetaminofen 500mg',
+            'laboratorio': self.laboratorio.pk,
+        }
+        base.update(kwargs)
+        return base
+
+    def test_form_valido(self):
+        """Formulario válido con todos los campos completos."""
+        form = MedicamentoForm(data=self._datos_validos())
+        self.assertTrue(form.is_valid())
+
+    def test_form_sin_nombre_comercial(self):
+        """Formulario inválido si falta nombre_comercial."""
+        form = MedicamentoForm(data=self._datos_validos(nombre_comercial=''))
+        self.assertFalse(form.is_valid())
+        self.assertIn('nombre_comercial', form.errors)
+
+    def test_form_sin_nombre_farmacologico(self):
+        """Formulario inválido si falta nombre_farmacologico."""
+        form = MedicamentoForm(data=self._datos_validos(nombre_farmacologico=''))
+        self.assertFalse(form.is_valid())
+        self.assertIn('nombre_farmacologico', form.errors)
+
+    def test_form_sin_componentes(self):
+        """Formulario inválido si falta componentes."""
+        form = MedicamentoForm(data=self._datos_validos(componentes=''))
+        self.assertFalse(form.is_valid())
+        self.assertIn('componentes', form.errors)
+
+    def test_form_sin_laboratorio(self):
+        """Formulario inválido si no se selecciona laboratorio."""
+        datos = self._datos_validos()
+        datos.pop('laboratorio')
+        form = MedicamentoForm(data=datos)
+        self.assertFalse(form.is_valid())
+        self.assertIn('laboratorio', form.errors)
+
+    def test_form_laboratorio_inexistente(self):
+        """Formulario inválido si el laboratorio no existe en la BD."""
+        form = MedicamentoForm(data=self._datos_validos(laboratorio=9999))
+        self.assertFalse(form.is_valid())
+        self.assertIn('laboratorio', form.errors)
+
+    def test_form_nombre_comercial_max_length(self):
+        """Formulario inválido si nombre_comercial supera 100 caracteres."""
+        form = MedicamentoForm(data=self._datos_validos(nombre_comercial='A' * 101))
+        self.assertFalse(form.is_valid())
+        self.assertIn('nombre_comercial', form.errors)
+
+    def test_form_guarda_instancia(self):
+        """form.save() crea un registro de Medicamento en la base de datos."""
+        form = MedicamentoForm(data=self._datos_validos())
+        self.assertTrue(form.is_valid())
+        med = form.save()
+        self.assertEqual(med.nombre_comercial, 'Paracetamol')
+        self.assertTrue(Medicamento.objects.filter(nombre_comercial='Paracetamol').exists())
+
+    def test_form_actualiza_instancia(self):
+        """form.save() con instance actualiza el medicamento existente."""
+        med = Medicamento.objects.create(
+            nombre_comercial='Viejo',
+            nombre_farmacologico='Viejo Farm',
+            componentes='Comp viejo',
+            laboratorio=self.laboratorio
+        )
+        form = MedicamentoForm(
+            data=self._datos_validos(nombre_comercial='Nuevo'),
+            instance=med
+        )
+        self.assertTrue(form.is_valid())
+        form.save()
+        med.refresh_from_db()
+        self.assertEqual(med.nombre_comercial, 'Nuevo')
+</file>
+
+<file path="Modelo/ModeloUsuario/Perfiles/tests.py">
+from django.test import TestCase
+from django.contrib.auth.models import User
+
+
+class UsuarioModelTest(TestCase):
+
+    def setUp(self):
+        self.usuario = User.objects.create_user(
+            username='testuser',
+            password='password123'
+        )
+
+    def test_crear_usuario(self):
+        """Se crea un usuario con username y contraseña correctos."""
+        self.assertEqual(self.usuario.username, 'testuser')
+        self.assertTrue(self.usuario.check_password('password123'))
+
+    def test_contrasena_hasheada(self):
+        """La contraseña se almacena hasheada, no en texto plano."""
+        self.assertNotEqual(self.usuario.password, 'password123')
+
+    def test_usuario_persiste_en_bd(self):
+        """El usuario creado en setUp se encuentra en la base de datos."""
+        usuario_db = User.objects.get(username='testuser')
+        self.assertEqual(usuario_db.username, 'testuser')
+
+    def test_username_unico(self):
+        """No se pueden crear dos usuarios con el mismo username."""
+        from django.db import IntegrityError
+        with self.assertRaises(IntegrityError):
+            User.objects.create_user(username='testuser', password='otrapass')
+
+    def test_str_usuario(self):
+        """__str__ del User retorna el username."""
+        self.assertEqual(str(self.usuario), 'testuser')
+
+    def test_usuario_activo_por_defecto(self):
+        """Un usuario creado con create_user está activo por defecto."""
+        self.assertTrue(self.usuario.is_active)
+
+    def test_usuario_no_es_staff_por_defecto(self):
+        """Un usuario creado con create_user no es staff por defecto."""
+        self.assertFalse(self.usuario.is_staff)
+</file>
+
+<file path="Super/settings.py">
+"""
+Django settings for Super project.
+
+Generated by 'django-admin startproject' using Django 4.2.21.
+
+For more information on this file, see
+https://docs.djangoproject.com/en/4.2/topics/settings/
+
+For the full list of settings and their values, see
+https://docs.djangoproject.com/en/4.2/ref/settings/
+"""
+
+from pathlib import Path
+import os
+
+# Build paths inside the project like this: BASE_DIR / 'subdir'.
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+# Quick-start development settings - unsuitable for production
+# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = 'django-insecure-o-b00d0i7rwjrq#6x)ts0^3mo*i_4frhn#+n=y^1p4b8nwh(nd'
+
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+
+ALLOWED_HOSTS = []
+
+
+# Application definition
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'Modelo.ModeloUsuario.Perfiles',
+    'Modelo.ModeloMedicamentos.Medicamentos',
+    'Modelo.ModeloFarmacia.Farmacias',
+    'Modelo.ModeloLaboratorio.Laboratorios',
+    'Vista.VistaUsuario',
+    'Vista.VistaPrincipal',
+    'Vista.VistaFarmacia',
+    'Vista.VistaLaboratorio',
+    'Vista.VistaMedicamento',
+    'Controlador',
+]
+
+MIDDLEWARE = [
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+ROOT_URLCONF = 'Super.urls'
+
+TEMPLATES = [
+    {
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [
+            os.path.join(BASE_DIR, 'Vista', 'VistaPrincipal', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaFarmacia', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaLaboratorio', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaMedicamento', 'Templates'),
+            os.path.join(BASE_DIR, 'Vista', 'VistaUsuario', 'Templates'),
+        ],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
+            ],
+        },
+    },
+]
+
+WSGI_APPLICATION = 'Super.wsgi.application'
+
+
+# Database
+# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
+    }
+}
+
+
+# Password validation
+# https://docs.djangoproject.com/en/4.2/ref/settings/#auth-password-validators
+
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
+    },
+    {
+        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+]
+
+
+# Internationalization
+# https://docs.djangoproject.com/en/4.2/topics/i18n/
+
+LANGUAGE_CODE = 'en-us'
+
+TIME_ZONE = 'UTC'
+
+USE_I18N = True
+
+USE_TZ = True
+
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/4.2/howto/static-files/
+
+STATIC_URL = 'static/'
+
+# Default primary key field type
+# https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+</file>
+
+</files>
